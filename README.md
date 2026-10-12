@@ -1,2 +1,32 @@
 # daily-thoughts
-This is a repository maintained by a computer‑science student. It contains various interesting ideas he comes up with in daily life, including games, web pages, and other programs.
+
+这是一个由计算机科学学生维护的仓库，收录他在日常生活中想到的各种有趣点子，包括游戏、网页和其他小程序。
+
+## 游戏列表
+
+### 🎮 潜艇游戏（submarine-game）
+
+一款网页端潜艇对战小游戏，背景设定在比斯开湾。你将扮演一艘潜艇，**点击敌舰发射鱼雷**击沉目标，同时躲避深水炸弹。
+
+- 鱼雷 / 深水炸弹等战斗要素
+- 得分系统与本地最高分排行榜（Top 10）
+- 加载界面与游戏结束界面
+- 玩法介绍与潜艇基地场景
+
+> 打开 `submarine-game/index.html` 即可游玩。
+
+### ⚽ 2026 美加墨世界杯 · 教练模式（worldcup2026.html）
+
+一款以 2026 美加墨世界杯为题材的足球教练模拟游戏。选择你的国家队，以教练身份带领球队冲击世界之巅。
+
+- 选择球队并制定战术
+- 球员士气 / 默契 / 能力管理
+- 比赛事件与结果的模拟
+- 战术抉择带来的连锁影响
+- 应对明星球员（如 C 罗、莱昂）的状态与舆论压力
+
+> 打开 `worldcup2026.html` 即可游玩。
+
+## 使用方式
+
+所有游戏均为纯前端页面，无需安装任何依赖，直接用浏览器打开对应的 HTML 文件即可运行。

@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SUBMARINE</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;width:100vw;height:100vh;user-select:none;font-family:'Segoe UI','Microsoft YaHei','PingFang SC',sans-serif}
+canvas{display:block;margin:0 auto}
+#gc{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;background:#000}
+</style>
+</head>
+<body><div id="gc"><canvas id="c"></canvas></div>
+<img id="loadImg" src="loading.jpg" style="display:none">
+<img id="goImg" src="gameover.jpg" style="display:none">
+<script>
+// ===== IRON CROSS U-BOAT v2 =====
+const W=960,H=540,ca=document.getElementById('c'),cx=ca.getContext('2d');
+ca.width=W;ca.height=H;
+function rs(){const s=Math.min(window.innerWidth/W,window.innerHeight/H);ca.style.width=W*s+'px';ca.style.height=H*s+'px'}
+window.addEventListener('resize',rs);rs();
+
+// ===== INPUT =====
+const K={},M={x:0,y:0,clicked:false,down:false};
+window.addEventListener('keydown',e=>{K[e.key.toLowerCase()]=true;e.preventDefault()});
+window.addEventListener('keyup',e=>{K[e.key.toLowerCase()]=false;e.preventDefault()});
+ca.addEventListener('mousemove',e=>{const r=ca.getBoundingClientRect(),sx=W/r.width,sy=H/r.height;M.x=(e.clientX-r.left)*sx;M.y=(e.clientY-r.top)*sy});
+ca.addEventListener('mousedown',e=>{M.down=true;M.clicked=true});
+ca.addEventListener('mouseup',()=>{M.down=false});
+ca.addEventListener('contextmenu',e=>e.preventDefault());
+
+// ===== AUDIO =====
+let AC=null;
+function ia(){if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)()}
+function beep(f=440,d=0.1,t='square',v=0.1){if(!AC)return;try{const o=AC.createOscillator(),g=AC.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(v,AC.currentTime);g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}}
+function sfxClick(){beep(600,0.05,'square',0.08)}
+function sfxSel(){beep(800,0.08,'square',0.1)}
+function sfxSonar(){beep(200,0.3,'sine',0.15);beep(400,0.2,'sine',0.1)}
+function sfxExp(){beep(60,0.5,'sawtooth',0.2);beep(30,0.8,'triangle',0.15)}
+function sfxTorp(){beep(150,0.15,'sawtooth',0.12)}
+function sfxAlarm(){beep(880,0.1,'square',0.15);beep(660,0.1,'square',0.15)}
+
+// ===== BGM SYSTEM =====
+let bgmAudio=null,bgmVolume=0.4;
+function initBGM(){
+  if(bgmAudio)return;
+  bgmAudio=new Audio('file:///C:/Users/HUAWEI/Desktop/The%20Mass%20(立体声环绕版)-Era.mp3');
+  bgmAudio.loop=true;bgmAudio.volume=bgmVolume;
+  bgmAudio.play().catch(()=>{console.log('BGM: click to start')});
+}
+function setBGMVolume(v){bgmVolume=Math.max(0,Math.min(1,v));if(bgmAudio)bgmAudio.volume=bgmVolume;localStorage.setItem('uboatBGMVol',bgmVolume)}
+function toggleBGM(){if(!bgmAudio)return;if(bgmAudio.paused)bgmAudio.play();else bgmAudio.pause()}
+// Load saved volume
+try{const sv=localStorage.getItem('uboatBGMVol');if(sv!==null)bgmVolume=parseFloat(sv)}catch(e){}
+
+// ===== DAY CYCLE (5min) =====
+function dayPhase(t){
+  const p=t/300; // 0-1
+  let top,mid,bot,ca,wc;
+  // Lerp helper
+  const L=(a,b,f)=>Math.round(a+(b-a)*f);
+  const Lrgb=(r1,g1,b1,r2,g2,b2,f)=>`rgb(${L(r1,r2,f)},${L(g1,g2,f)},${L(b1,b2,f)})`;
+  const Lrgba=(r1,g1,b1,a1,r2,g2,b2,a2,f)=>`rgba(${L(r1,r2,f)},${L(g1,g2,f)},${L(b1,b2,f)},${(a1+(a2-a1)*f).toFixed(2)})`;
+
+  if(p<0.12){// 0-36s: night→dawn (purple→light blue)
+    const f=p/0.12;
+    top=Lrgb(15,10,40,80,150,220,f);mid=Lrgba(20,15,45,0.5,60,140,210,0.85,f);bot=Lrgba(0,0,0,0,100,180,240,0,f);ca=0.05+0.65*f;wc='rgba(20,55,110,0.55)';
+  }else if(p<0.25){// 36-75s: dawn→morning (light blue)
+    const f=(p-0.12)/0.13;
+    top=Lrgb(80,150,220,120,185,235,f);mid=Lrgba(60,140,210,0.85,120,185,235,0.95,f);bot=Lrgba(100,180,240,0,120,200,245,0,f);ca=0.7+0.3*f;wc='rgba(18,50,95,0.5)';
+  }else if(p<0.4){// 75-120s: morning→deep blue
+    const f=(p-0.25)/0.15;
+    top=Lrgb(120,185,235,55,128,204,f);mid=Lrgba(120,185,235,0.95,94,168,232,0.9,f);bot=Lrgba(120,200,245,0,100,180,240,0,f);ca=1;wc='rgba(18,50,95,0.5)';
+  }else if(p<0.5){// 120-150s: deep blue→light blue
+    const f=(p-0.4)/0.1;
+    top=Lrgb(55,128,204,120,185,235,f);mid=Lrgba(94,168,232,0.9,120,185,235,0.95,f);bot=Lrgba(100,180,240,0,120,200,245,0,f);ca=1;wc='rgba(18,50,95,0.5)';
+  }else if(p<0.6){// 150-180s: light blue→orange (sunset!)
+    const f=(p-0.5)/0.1;
+    top=Lrgb(120,185,235,240,140,60,f);mid=Lrgba(120,185,235,0.95,240,160,80,0.9,f);bot=Lrgba(120,200,245,0,220,150,60,0,f);ca=1-0.5*f;wc='rgba(20,55,100,0.5)';
+  }else if(p<0.7){// 180-210s: orange→blue-purple (twilight)
+    const f=(p-0.6)/0.1;
+    top=Lrgb(240,140,60,60,40,100,f);mid=Lrgba(240,160,80,0.9,70,50,110,0.7,f);bot=Lrgba(220,150,60,0,30,20,60,0,f);ca=0.5-0.35*f;wc='rgba(20,55,100,0.5)';
+  }else if(p<0.85){// 210-255s: blue-purple→purple-black (night)
+    const f=(p-0.7)/0.15;
+    top=Lrgb(60,40,100,15,10,30,f);mid=Lrgba(70,50,110,0.7,12,8,25,0.5,f);bot=Lrgba(30,20,60,0,0,0,0,0,f);ca=0.15-0.1*f;wc=`rgba(${L(20,18,f)},${L(55,35,f)},${L(100,60,f)},0.55)`;
+  }else{// 255-300s: purple-black→night (deepen then dawn prep)
+    const f=(p-0.85)/0.15;
+    top=Lrgb(15,10,30,15,10,40,f);mid=Lrgba(12,8,25,0.5,20,15,45,0.5,f);bot='rgba(0,0,0,0)';ca=0.05;wc='rgba(18,35,60,0.55)';
+  }
+  // Sun position: arc from left (rise) to right (set), visible during day
+  const sunAngle=(p-0.04)*Math.PI; // 0.04→sunrise start, 1.04→sunset end
+  const sunVisible=p>0.04&&p<0.7; // visible from dawn to twilight
+  const sunX=W/2+Math.cos(sunAngle)*W*0.42;
+  const sunY=100-Math.sin(sunAngle)*70+(p>0.5?(p-0.5)*120:0); // arc + dip at sunset
+  return{top,mid,bot,cloudAlpha:ca,waveColor:wc,sunVisible,sunX,sunY};
+}
+
+// ===== DIFFICULTY SYSTEM =====
+function getDiffLevel(gameTime){return Math.floor(gameTime/120)} // level up every 2 min
+function getDiffMultiplier(gameTime){return 1+getDiffLevel(gameTime)*0.06} // +6% per level
+
+// ===== CONSTANTS =====
+const WW=6000,WH=300,DS=80,DM=160,DD=250,MTX=3;
+const ST={MENU:'menu',LOADING:'loading',INTRO:'intro',PLAY:'playing',PAUSE:'paused',CREW:'crew',EVENT:'event',OVER:'gameover',SCORES:'highscores',HELP:'howtoplay'};
+
+// ===== SCORES =====
+function ldS(){try{return JSON.parse(localStorage.getItem('uboatScores')||'[]')}catch(e){return[]}}
+function svS(n,s){const sc=ldS();sc.push({name:n,score:s,date:new Date().toLocaleDateString()});sc.sort((a,b)=>b.score-a.score);const t=sc.slice(0,10);localStorage.setItem('uboatScores',JSON.stringify(t));return t}
+
+// ===== MODERN RENDERER =====
+const R={
+  r(x,y,w,h,c){cx.fillStyle=c;cx.fillRect(x,y,w,h)},
+  t(tx,x,y,s=12,c='#fff',a='left'){cx.font=`${s}px "Segoe UI","Microsoft YaHei","PingFang SC",sans-serif`;cx.fillStyle=c;cx.textAlign=a;cx.fillText(tx,x,y)},
+  // Polished submarine
+  sub(x,y,dir=1){
+    cx.save();cx.translate(x,y);if(dir<0)cx.scale(-1,1);
+    const hull='#5a6572',hullL='#6b7886',hullD='#48535e',deck='#3d4752',tower='#4a5562',red='#c42535',redD='#9a1e2a',dk='#2d333a',wht='#e8e8e8',prop='#4a4a4a';
+    // Hull shadow
+    cx.fillStyle=hullD;cx.beginPath();cx.moveTo(24,-4);cx.quadraticCurveTo(0,-9,-18,-4);cx.lineTo(-24,0);cx.lineTo(-18,4);cx.quadraticCurveTo(0,9,24,4);cx.closePath();cx.fill();
+    // Main hull
+    const hg=cx.createLinearGradient(0,-7,0,7);hg.addColorStop(0,hullL);hg.addColorStop(0.5,hull);hg.addColorStop(1,hullD);
+    cx.fillStyle=hg;cx.beginPath();cx.moveTo(22,-5);cx.quadraticCurveTo(0,-8,-16,-4);cx.lineTo(-22,-1);cx.lineTo(-24,1);cx.lineTo(-22,3);cx.lineTo(-16,5);cx.quadraticCurveTo(0,8,22,5);cx.closePath();cx.fill();
+    // Hull highlight stripe
+    cx.fillStyle='rgba(255,255,255,0.08)';cx.beginPath();cx.moveTo(18,-4);cx.quadraticCurveTo(2,-7,-12,-3);cx.lineTo(-17,0);cx.lineTo(-12,2);cx.quadraticCurveTo(2,5,18,3);cx.closePath();cx.fill();
+    // Deck
+    cx.fillStyle=deck;cx.fillRect(-14,-6,30,2);cx.fillRect(-16,-5,34,1);
+    // Conning tower
+    const tg=cx.createLinearGradient(0,-14,0,0);tg.addColorStop(0,'#556270');tg.addColorStop(1,'#3d4752');
+    cx.fillStyle=tg;cx.fillRect(-5,-16,12,12);
+    cx.fillStyle='#4a5562';cx.fillRect(-4,-17,10,2);
+    // Tower top
+    cx.fillStyle='#3a4450';cx.fillRect(-6,-20,14,5);cx.fillStyle=red;cx.fillRect(-5,-22,12,3);
+    // Periscopes
+    cx.fillStyle='#333';cx.fillRect(1,-26,1.5,7);cx.fillRect(5,-22,1.5,5);
+    // Deck gun
+    cx.fillStyle='#4a4a4a';cx.fillRect(-14,-8,1,2);cx.fillRect(-16,-7,5,1.5);cx.fillStyle='#3a3a3a';cx.fillRect(-15,-10,1.5,3);
+    // Bow planes
+    cx.fillStyle=deck;cx.fillRect(16,-8,6,1.5);cx.fillRect(16,7,6,1.5);
+    // Stern planes
+    cx.fillStyle=deck;cx.fillRect(-24,-7,5,1.5);cx.fillRect(-24,5,5,1.5);
+    // Propellers
+    cx.fillStyle=prop;cx.fillRect(-26,0,3,2);cx.fillRect(-27,-2,2,6);
+    // Rudder
+    cx.fillStyle='#3a3a3a';cx.fillRect(-25,1,3,6);
+    // Waterline
+    cx.fillStyle=redD;cx.fillRect(-12,2,20,1);
+    // Iron cross on tower
+    cx.fillStyle=red;cx.fillRect(-1,-14,4,1.5);cx.fillRect(1,-16,2,5.5);
+    // Flag
+    cx.fillStyle=red;cx.fillRect(-1,-26,4,3);cx.fillStyle=wht;cx.fillRect(0,-26,2,2);
+    // Engine wake
+    cx.fillStyle='rgba(180,200,220,0.15)';cx.fillRect(-30,0,6,2);cx.fillRect(-32,1,4,1);
+    cx.restore();
+  },
+  // AAA Destroyer - Fletcher-class style
+  destroyer(x,y){
+    cx.save();cx.translate(x,y);
+    const h='#5c6d79',hl='#708290',hd='#485964',dk='#384550',r='#4d4d4d',rf='#3d3d3d';
+    // Hull shadow
+    cx.fillStyle=hd;cx.beginPath();cx.moveTo(34,-3);cx.lineTo(28,-5);cx.lineTo(-28,-5);cx.lineTo(-36,-2);cx.lineTo(-38,2);cx.lineTo(-36,5);cx.lineTo(-28,6);cx.lineTo(28,6);cx.lineTo(34,3);cx.closePath();cx.fill();
+    // Main hull
+    cx.fillStyle=h;cx.beginPath();cx.moveTo(32,-3);cx.lineTo(26,-5);cx.lineTo(-26,-5);cx.lineTo(-34,-1);cx.lineTo(-34,3);cx.lineTo(-26,5);cx.lineTo(26,5);cx.lineTo(32,3);cx.closePath();cx.fill();
+    cx.fillStyle=hl;cx.beginPath();cx.moveTo(30,-3);cx.lineTo(24,-4.5);cx.lineTo(-24,-4.5);cx.lineTo(-32,-1);cx.lineTo(-32,1);cx.lineTo(-24,3);cx.lineTo(24,3);cx.lineTo(30,1);cx.closePath();cx.fill();
+    // Deck
+    cx.fillStyle=dk;cx.fillRect(-26,-7,52,3);
+    // Bow (sharp)
+    cx.fillStyle=h;cx.beginPath();cx.moveTo(32,-3);cx.lineTo(42,-1);cx.lineTo(42,1);cx.lineTo(32,3);cx.closePath();cx.fill();
+    // Stern
+    cx.fillStyle=hd;cx.beginPath();cx.moveTo(-34,-1);cx.lineTo(-38,0.5);cx.lineTo(-38,2);cx.lineTo(-34,2.5);cx.closePath();cx.fill();
+    // Superstructure base
+    cx.fillStyle=dk;cx.fillRect(-14,-16,24,10);cx.fillStyle='#52606c';cx.fillRect(-13,-17,22,2);
+    // Bridge tower
+    cx.fillStyle=dk;cx.fillRect(-8,-26,12,11);cx.fillStyle='#5a6a76';cx.fillRect(-7,-28,10,3);
+    // Bridge windows
+    cx.fillStyle='#334';cx.fillRect(-6,-24,8,3);
+    // Radar mast
+    cx.fillStyle='#444';cx.fillRect(-1,-35,1.5,8);cx.fillRect(-3,-37,5,3);
+    // Forward turret (dual 5-inch)
+    cx.fillStyle=r;cx.beginPath();cx.arc(16,-14,6,0,Math.PI*2);cx.fill();cx.fillStyle=rf;cx.beginPath();cx.arc(16,-17,4,0,Math.PI*2);cx.fill();cx.fillStyle='#555';cx.fillRect(13,-16,6,1.5);
+    // Aft turret
+    cx.fillStyle=r;cx.beginPath();cx.arc(-18,-14,5.5,0,Math.PI*2);cx.fill();cx.fillStyle=rf;cx.beginPath();cx.arc(-18,-17,3.5,0,Math.PI*2);cx.fill();cx.fillStyle='#555';cx.fillRect(-21,-16,5,1.5);
+    // AA guns
+    cx.fillStyle='#555';cx.fillRect(6,-20,1.5,4);cx.fillRect(-12,-20,1.5,4);
+    // Funnel
+    cx.fillStyle='#3a4550';cx.fillRect(6,-30,7,13);cx.fillStyle='#2a3540';cx.fillRect(5,-32,9,3);
+    // Funnel smoke
+    cx.fillStyle='rgba(100,100,100,0.3)';cx.fillRect(8,-36,4,6);cx.fillRect(10,-40,5,5);
+    // Depth charge racks (stern)
+    cx.fillStyle='#444';cx.fillRect(-24,5,6,2.5);cx.fillRect(-16,5,6,2.5);
+    for(let i=0;i<4;i++){cx.fillStyle='#3a3a3a';cx.fillRect(-23+i*3,3,2,3.5)}
+    // K-gun launchers
+    cx.fillStyle='#555';cx.fillRect(18,4,3,2);cx.fillRect(22,4,3,2);
+    // Wake
+    cx.fillStyle='rgba(160,210,240,0.2)';cx.fillRect(-36,7,72,2.5);
+    cx.fillStyle='rgba(160,210,240,0.15)';cx.fillRect(-34,8,68,2);
+    // Hull number
+    cx.fillStyle='#ddd';cx.fillRect(20,1,6,2);cx.fillRect(22,-1,2,4);
+    cx.restore();
+  },
+  // Cruiser
+  cruiser(x,y){
+    cx.save();cx.translate(x,y);
+    const h='#607080',hl='#708898',hd='#506070',dk='#405060';
+    cx.fillStyle=hd;cx.beginPath();cx.moveTo(42,-3);cx.lineTo(36,-6);cx.lineTo(-34,-6);cx.lineTo(-42,-2);cx.lineTo(-44,2);cx.lineTo(-42,5);cx.lineTo(-34,6);cx.lineTo(36,6);cx.lineTo(42,3);cx.closePath();cx.fill();
+    cx.fillStyle=h;cx.beginPath();cx.moveTo(40,-3);cx.lineTo(34,-5);cx.lineTo(-32,-5);cx.lineTo(-40,-1);cx.lineTo(-40,3);cx.lineTo(-32,5);cx.lineTo(34,5);cx.lineTo(40,3);cx.closePath();cx.fill();
+    cx.fillStyle=dk;cx.fillRect(-34,-8,58,4);
+    // Superstructure
+    cx.fillStyle=dk;cx.fillRect(-14,-18,26,12);cx.fillStyle='#556878';cx.fillRect(-13,-20,24,3);
+    // Bridge tower
+    cx.fillStyle='#4a5a6a';cx.fillRect(-9,-28,14,11);cx.fillStyle='#5a6a7a';cx.fillRect(-8,-30,12,3);
+    // Forward turrets (large)
+    cx.fillStyle='#5a5a5a';cx.beginPath();cx.arc(22,-16,7,0,Math.PI*2);cx.fill();
+    cx.fillStyle='#4a4a4a';cx.beginPath();cx.arc(22,-20,5,0,Math.PI*2);cx.fill();cx.fillStyle='#555';cx.fillRect(18,-18,8,1.5);
+    cx.fillStyle='#5a5a5a';cx.beginPath();cx.arc(8,-16,6.5,0,Math.PI*2);cx.fill();
+    cx.fillStyle='#4a4a4a';cx.beginPath();cx.arc(8,-19,4.5,0,Math.PI*2);cx.fill();cx.fillStyle='#555';cx.fillRect(4,-17,7,1.5);
+    // Aft turrets
+    cx.fillStyle='#5a5a5a';cx.beginPath();cx.arc(-20,-16,6,0,Math.PI*2);cx.fill();
+    cx.fillStyle='#4a4a4a';cx.beginPath();cx.arc(-20,-19,4,0,Math.PI*2);cx.fill();cx.fillStyle='#555';cx.fillRect(-24,-17,7,1.5);
+    // Funnels (twin)
+    cx.fillStyle=dk;cx.fillRect(12,-30,7,13);cx.fillRect(2,-30,7,13);
+    cx.fillStyle='#2a3a4a';cx.fillRect(11,-32,9,3);cx.fillRect(1,-32,9,3);
+    // Radar mast
+    cx.fillStyle='#555';cx.fillRect(-3,-38,1.5,9);cx.fillRect(-6,-40,7,3);
+    // Wake
+    cx.fillStyle='rgba(160,210,240,0.2)';cx.fillRect(-42,7,84,2.5);
+    cx.restore();
+  },
+  // Polished enemy sub
+  esub(x,y){
+    cx.save();cx.translate(x,y);
+    const b='#445544',bl='#556655',bd='#334433',dk='#223322';
+    cx.fillStyle=bd;cx.beginPath();cx.moveTo(16,-3);cx.quadraticCurveTo(0,-6,-12,-3);cx.lineTo(-16,1);cx.lineTo(-12,4);cx.quadraticCurveTo(0,6,16,3);cx.closePath();cx.fill();
+    cx.fillStyle=b;cx.beginPath();cx.moveTo(14,-2.5);cx.quadraticCurveTo(0,-5,-10,-2.5);cx.lineTo(-14,0.5);cx.lineTo(-10,3);cx.quadraticCurveTo(0,5,14,2.5);cx.closePath();cx.fill();
+    cx.fillStyle=bl;cx.beginPath();cx.moveTo(12,-2);cx.quadraticCurveTo(1,-4,-8,-2);cx.lineTo(-12,0);cx.lineTo(-8,2);cx.quadraticCurveTo(1,3.5,12,1.5);cx.closePath();cx.fill();
+    cx.fillStyle=dk;cx.fillRect(-3,-9,8,7);cx.fillStyle='#3a4a3a';cx.fillRect(-2,-10,6,2);
+    cx.fillStyle='#4a4a4a';cx.fillRect(-17,0,3,1.5);
+    cx.restore();
+  },
+  // AAA Merchant - Liberty Ship style
+  merchant(x,y){
+    cx.save();cx.translate(x,y);
+    const h='#8a8278',hl='#9a9288',hd='#6a6258',deck='#5a5248',sup='#4a4238',dk='#3a3228',wln='#c05030';
+    // Hull shadow
+    cx.fillStyle=hd;cx.fillRect(-34,-3,68,9);
+    // Main hull
+    const hg=cx.createLinearGradient(0,-3,0,5);hg.addColorStop(0,hl);hg.addColorStop(0.4,h);hg.addColorStop(1,hd);
+    cx.fillStyle=hg;cx.fillRect(-32,-3,64,8);
+    // Hull highlight strip
+    cx.fillStyle='rgba(255,255,255,0.06)';cx.fillRect(-30,-2,60,2);
+    // Deck
+    cx.fillStyle=deck;cx.fillRect(-30,-6,60,4);
+    // Bow (rounded merchant bow)
+    cx.fillStyle=h;cx.beginPath();cx.moveTo(30,-2);cx.quadraticCurveTo(34,0,33,2);cx.lineTo(30,3);cx.fill();
+    // Stern
+    cx.fillStyle=hd;cx.fillRect(-34,0,4,3);cx.fillRect(-36,1,3,2);
+    // Waterline (red anti-fouling)
+    cx.fillStyle=wln;cx.fillRect(-30,3,60,2);
+    // Superstructure (amidships)
+    cx.fillStyle=sup;cx.fillRect(-10,-18,22,14);
+    cx.fillStyle='#555';cx.fillRect(-9,-20,20,3);
+    // Bridge windows
+    cx.fillStyle='#334455';cx.fillRect(-7,-16,16,4);
+    // Funnel (aft, with rake)
+    cx.fillStyle='#3a3028';cx.fillRect(8,-28,8,14);
+    cx.fillStyle='#2a2018';cx.fillRect(7,-30,10,3);
+    // Funnel band (company colors)
+    cx.fillStyle='#c04030';cx.fillRect(8,-22,8,2.5);
+    // Foremast
+    cx.fillStyle='#4a4a4a';cx.fillRect(-22,-22,1.5,18);
+    // Mainmast
+    cx.fillStyle='#4a4a4a';cx.fillRect(16,-20,1.5,16);
+    // Cargo booms/derricks
+    cx.fillStyle='#5a5a5a';cx.fillRect(-20,-14,30,1);cx.fillRect(10,-14,15,1);
+    // Cargo hatches (deck)
+    cx.fillStyle='#3a3a3a';cx.fillRect(-22,-5,10,2);cx.fillRect(-8,-5,10,2);cx.fillRect(6,-5,10,2);
+    cx.fillStyle='#444';cx.fillRect(-21,-5,8,1.5);cx.fillRect(-7,-5,8,1.5);cx.fillRect(7,-5,8,1.5);
+    // Lifeboats
+    cx.fillStyle='#c08040';cx.fillRect(-14,-14,6,2);cx.fillRect(14,-14,6,2);
+    // Wake
+    cx.fillStyle='rgba(160,200,220,0.18)';cx.fillRect(-34,7,68,2);
+    cx.fillStyle='rgba(160,200,220,0.1)';cx.fillRect(-32,8,64,1.5);
+    cx.restore();
+  },
+  // Sonar ping
+  sonar(x,y,rad,alpha){
+    cx.strokeStyle=`rgba(80,200,255,${alpha})`;cx.lineWidth=2;
+    cx.beginPath();cx.arc(x,y,rad,0,Math.PI*2);cx.stroke();
+    cx.strokeStyle=`rgba(140,230,255,${alpha*0.5})`;cx.lineWidth=1;
+    cx.beginPath();cx.arc(x,y,rad*0.85,0,Math.PI*2);cx.stroke();
+  },
+  // Explosion
+  exp(x,y,rad,alpha){
+    const r=rad;
+    cx.fillStyle=`rgba(255,140,20,${alpha})`;cx.beginPath();cx.arc(x,y,r,0,Math.PI*2);cx.fill();
+    cx.fillStyle=`rgba(255,220,60,${alpha*0.8})`;cx.beginPath();cx.arc(x,y,r*0.6,0,Math.PI*2);cx.fill();
+    cx.fillStyle=`rgba(255,255,200,${alpha})`;cx.beginPath();cx.arc(x,y,r*0.2,0,Math.PI*2);cx.fill();
+    for(let i=0;i<12;i++){const a=i*Math.PI/6,d=r*(0.4+Math.random()*0.9);this.r(x+Math.cos(a)*d-1.5,y+Math.sin(a)*d-1.5,3,2,`rgba(200,150,30,${alpha*0.8})`)}
+  },
+  // Torpedo
+  torp(x,y,ang){
+    cx.save();cx.translate(x,y);cx.rotate(ang);
+    cx.fillStyle='#4a4a4a';cx.fillRect(-6,-1.5,12,3);cx.fillStyle='#5a5a5a';cx.fillRect(-5,-1,10,2);
+    cx.fillStyle='#3a3a3a';cx.fillRect(4,-2,5,4);cx.fillStyle='#666';cx.fillRect(6,-1.5,2,3);
+    cx.restore();
+  },
+  // Depth charge
+  dc(x,y){
+    cx.save();cx.translate(x,y);
+    cx.fillStyle='#3a3a3a';cx.fillRect(-2.5,-3.5,5,7);cx.fillStyle='#4a4a4a';cx.fillRect(-2,-3,4,6);
+    cx.fillStyle='#555';cx.fillRect(-1,-1,2,2);
+    cx.restore();
+  },
+  // Bubble
+  bub(x,y,s,alpha){cx.fillStyle=`rgba(140,210,240,${alpha})`;cx.beginPath();cx.arc(x,y,s,0,Math.PI*2);cx.fill()},
+  // Panel
+  panel(x,y,w,h,title=''){
+    cx.fillStyle='rgba(6,8,18,0.94)';cx.fillRect(x,y,w,h);
+    cx.strokeStyle='#3a5068';cx.lineWidth=1.5;cx.strokeRect(x,y,w,h);
+    if(title){cx.fillStyle='#152535';cx.fillRect(x,y-11,w,11);this.t(title,x+w/2,y-2,9,'#7ab8e0','center')}
+  }
+};
+
+// ===== PARTICLES / BUBBLES =====
+let bubbles=[];
+function spawnBubbles(x,y,n=3){for(let i=0;i<n;i++)bubbles.push({x:x+(Math.random()-0.5)*20,y:y+(Math.random()-0.5)*10,size:0.5+Math.random()*2,speed:5+Math.random()*20,life:1+Math.random()*2})}
+function updateBubbles(dt){
+  for(let i=bubbles.length-1;i>=0;i--){const b=bubbles[i];b.y-=b.speed*dt;b.life-=dt;if(b.life<=0)bubbles.splice(i,1)}
+}
+
+// ===== GAME CLASS =====
+class Game{
+  constructor(){
+    this.state=ST.MENU;this.player=null;this.enemies=[];this.torpedoes=[];this.depthCharges=[];this.explosions=[];this.sonarPings=[];this.camera={x:0,y:0};
+    this.gameTime=0;this.dt=0;this.score=0;this.messageLog=[];this.eventCooldown=0;this.enemySpawnTimer=0;
+    this.wrecks=[];this.alertMessages=[];this.surfaceDanger=0;this.breaching=false;this.breachProgress=0;
+    this.batterySwapping=false;this.batterySwapProgress=0;this.seafloor=[];
+    this.menuSel=0;this.menuItems=['开始游戏','历史得分','玩法介绍','退出游戏'];
+    this.introPhase=0;this.introTimer=0;
+    this.introTexts=[
+      '1943年·北大西洋',
+      '战争进入第四个年头...',
+      '盟军的工业机器全速运转，',
+      '美国的物资如潮水般涌向英国。',
+      '从纽约到利物浦——',
+      '数千艘商船横跨大西洋，',
+      '运送着坦克、弹药、粮食...',
+      '这是盟军的生命线。',
+      '',
+      '柏林，海军总司令部。',
+      '卡尔·邓尼茨海军元帅站在海图前，',
+      '他的目光落在大西洋中部——',
+      '那片盟军空中掩护无法覆盖的区域。',
+      '「我们必须切断这条补给线。」',
+      '「在大西洋的黑暗深处...」',
+      '「让盟军感受恐惧。」',
+      '',
+      '布雷斯特港·潜艇基地。',
+      '清晨的雾气笼罩着混凝土掩体。',
+      '一艘崭新的 VII-C 型潜艇静静停泊。',
+      '她的艇身上漆着铁十字勋章——',
+      '这是「铁十字号」，',
+      '德国海军最精锐的潜艇之一。',
+      '此前已击沉 17 艘盟军舰船，',
+      '总计 8 万 2 千吨。',
+      '',
+      '艇长办公室。',
+      '一名年轻军官整理着军装。',
+      '埃里克·冯·施泰因上校，',
+      '32岁，普鲁士军事世家出身，',
+      '三度获得骑士铁十字勋章。',
+      '邓尼茨亲自点将：',
+      '「施泰因，这次任务非你莫属。」',
+      '「潜入大西洋，找到护航队的薄弱点...」',
+      '「然后像狼一样撕碎他们。」',
+      '',
+      '全体船员已在码头列队——',
+      '猎鹰工程组：托比亚斯·霍夫曼上尉',
+      '大白鲨搜索组：亚瑟·克劳斯少校',
+      '巨鲸操作组：奥托·冯·霍恩少校',
+      '北冰洋信号组：康拉德·海因里希上尉',
+      '雷霆攻击组：卢卡斯·穆勒上校',
+      '46名官兵，各就各位。',
+      '',
+      '施泰因上校登上指挥塔，',
+      '最后看了一眼法国海岸。',
+      '港口扩音器传来指令：',
+      '「铁十字号，准许出港。」',
+      '「无线电静默，自由作战。」',
+      '',
+      '柴油机轰鸣，',
+      '潜艇缓缓驶入比斯开湾...',
+      '前方，是广阔而危险的大西洋。',
+      '美国在东，英国在西——',
+      '而你，就在中间。',
+      '',
+      'Gute Jagd, Herr Kapitän.',
+      '狩猎愉快，上校先生。'
+    ];
+    this.highScores=ldS();this.crewPanel={team:0};this.activeEvent=null;this.gameOverReason='';this.gameOverTimer=0;
+    this._pendingAttack=undefined;this._crewBtnHover=-1;
+    this.pausedBeforeCrew=false;
+    this.genFloor();
+  }
+  genFloor(){this.seafloor=[];
+    let deepH=260+Math.random()*30; // deep ocean: 260-290m
+    for(let x=0;x<WW;x+=5){
+      let h;
+      // USA coast slope (x<500): gradually from 5m to deep water
+      if(x<150)h=5+(x/150)*15; // 5-20m very close to shore
+      else if(x<500)h=20+((x-150)/350)*(deepH-20); // smooth slope to deep
+      // UK coast slope (x>5500)
+      else if(x>WW-150)h=5+((WW-x)/150)*15;
+      else if(x>WW-500)h=20+((WW-x-150)/350)*(deepH-20);
+      // Deep ocean with gentle variation
+      else{deepH+=(Math.random()-0.5)*8;deepH=Math.max(240,Math.min(290,deepH));h=deepH}
+      h=Math.max(5,Math.min(290,h));this.seafloor.push({x,y:h})
+    }}
+  sfDepth(wx){const i=Math.floor(((wx%WW)+WW)%WW/5);return i>=0&&i<this.seafloor.length?this.seafloor[i].y:280}
+
+  startGame(){
+    ia();initBGM();this.state=ST.LOADING;this.loadTimer=5;this.introPhase=0;this.introTimer=0;this.score=0;this.gameTime=0;
+    this.enemies=[];this.torpedoes=[];this.depthCharges=[];this.explosions=[];this.sonarPings=[];this.wrecks=[];
+    this.messageLog=[];this.alertMessages=[];this.eventCooldown=40;this.enemySpawnTimer=25;this.surfaceDanger=0;
+    this.breaching=false;this.breachProgress=0;this.batterySwapping=false;this.batterySwapProgress=0;
+    this._pendingAttack=undefined;this._killStreak=0;this._lastKillTime=0;this._totalKills=0;this._lastDL=0;
+    this.player=new Sub();this.player.x=WW*0.2;this.player.depth=15;
+    this.camera.x=this.player.x;this.camera.y=this.player.depth;
+    this.msg('=== 铁十字号 作战日志 ===');this.msg('任务：潜入北大西洋，破坏盟军补给线');
+    this.msg('W/S 深度 | A/D 转向/前进 | SPACE 声呐');
+    this.msg('点击潜艇管理小组 | 点击敌舰发射鱼雷');
+  }
+
+  msg(m){this.messageLog.push({msg:m,timer:300});if(this.messageLog.length>20)this.messageLog.shift()}
+  alert(m,u=false){this.alertMessages.push({msg:m,timer:300,urgent:u});if(u)sfxAlarm()}
+
+  spawnEnemy(type,forceX,forceY){
+    let wx,wy=0;
+    if(forceX!==undefined){wx=forceX;if(forceY!==undefined)wy=forceY}
+    else{
+      // Random position across the ocean, slightly denser near ports
+      const portBias=Math.random();
+      if(portBias<0.2){wx=200+Math.random()*600} // USA port area (20%)
+      else if(portBias<0.4){wx=WW-800+Math.random()*600} // UK port area (20%)
+      else{wx=800+Math.random()*(WW-1600)} // Open ocean (60%)
+      wy=0;
+    }
+    switch(type){case'destroyer':case'cruiser':wy=0;break;case'submarine':wy=40+Math.random()*150;break;case'merchant':wy=0;break}
+    const sf=this.sfDepth(wx);wy=Math.min(wy,sf-8);wy=Math.max(0,wy);
+    const e=new Enemy(type,wx,wy,this);this.enemies.push(e);return e;
+  }
+  triggerEvent(ev){if(this.activeEvent||this.state===ST.EVENT)return;this.activeEvent=ev;this.pausedBeforeCrew=false;this.state=ST.EVENT}
+  resolveEvent(ci){
+    if(!this.activeEvent)return;const c=this.activeEvent.choices[ci];if(!c)return;
+    if(c.consequences){for(const[k,v]of Object.entries(c.consequences)){switch(k){
+      case'oxygen':this.player.oxygen=Math.max(0,Math.min(100,this.player.oxygen+v));break;
+      case'power':this.player.power=Math.max(0,Math.min(100,this.player.power+v));break;
+      case'hullStress':this.player.hullStress=Math.max(0,Math.min(100,this.player.hullStress+v));break;
+      case'armor':this.player.armorIntegrity=Math.max(0,Math.min(100,this.player.armorIntegrity+v));break;
+      case'torpedoes':this.player.normalTorps=Math.max(0,this.player.normalTorps+v);break;
+      case'cruiseTorpedoes':this.player.cruiseTorps=Math.max(0,this.player.cruiseTorps+v);break;
+      case'missiles':this.player.missiles=Math.max(0,this.player.missiles+v);break;
+      case'score':this.score+=v;break;case'morale':this.player.morale=Math.max(0,Math.min(100,this.player.morale+v));break;
+      case'spawnEnemy':if(v)this.spawnEnemy(v);break;case'message':this.msg(v);break;
+    }}}
+    this.msg(`[事件] ${c.label}: ${c.result||''}`);this.activeEvent=null;this.state=ST.PLAY;this.eventCooldown=600+Math.random()*600;this.checkGO();
+  }
+
+  update(dt){
+    if(this.state===ST.MENU||this.state===ST.LOADING||this.state===ST.INTRO||this.state===ST.SCORES||this.state===ST.HELP)return;
+    this.dt=dt;
+    if(this.state===ST.PLAY){
+      this.player.update(dt,this);
+      this.camera.x+=(this.player.x-this.camera.x)*0.1;this.camera.y+=(this.player.depth-this.camera.y)*0.08;
+      // Sonar pings
+      for(let i=this.sonarPings.length-1;i>=0;i--){const p=this.sonarPings[i];p.radius+=p.speed*dt;p.alpha-=dt*0.8;if(p.alpha<=0){this.sonarPings.splice(i,1);continue}
+        for(const e of this.enemies){const dx=e.x-p.x,dy=e.y-p.y;if(Math.abs(Math.sqrt(dx*dx+dy*dy)-p.radius)<12){e.sonarMarked=true;e.markedTimer=180}}}
+      // Torpedoes
+      for(let i=this.torpedoes.length-1;i>=0;i--){const t=this.torpedoes[i];t.x+=Math.cos(t.angle)*t.speed*dt;t.y+=Math.sin(t.angle)*t.speed*dt;t.life-=dt;if(t.life<=0||t.y<0||t.y>WH){this.torpedoes.splice(i,1);continue}
+        // Player torpedoes: check against enemies
+        if(t.type!=='enemy'){
+          let hit=false;
+          for(let j=this.enemies.length-1;j>=0;j--){const e=this.enemies[j];const dx=e.x-t.x,dy=e.y-t.y;if(Math.sqrt(dx*dx+dy*dy)<(e.type==='merchant'?30:18)){this.torpedoes.splice(i,1);this.explosions.push({x:t.x,y:t.y,radius:5,maxR:28,alpha:1});sfxExp();e.hp-=t.damage;if(e.hp<=0)this.killEnemy(e,j);hit=true;break}}
+          if(hit)continue;
+          const sf=this.sfDepth(t.x);if(t.y>=sf){this.explosions.push({x:t.x,y:t.y,radius:3,maxR:14,alpha:1});this.torpedoes.splice(i,1);}
+        }
+        // Enemy torpedoes: check against player
+        if(t.type==='enemy'){
+          const dx=this.player.x-t.x,dy=this.player.depth-t.y;const pdist=Math.sqrt(dx*dx+dy*dy);
+          if(pdist<14){
+            this.explosions.push({x:t.x,y:t.y,radius:10,maxR:38,alpha:1});sfxExp();
+            const armDmg=25+Math.random()*25;const stressDmg=15+Math.random()*20;
+            this.player.armorIntegrity-=armDmg;this.player.hullStress+=stressDmg;
+            this.msg(`!!! 被敌方鱼雷命中！装甲-${Math.round(armDmg)}% 压力+${Math.round(stressDmg)}%`);
+            this.torpedoes.splice(i,1);
+          }
+        }
+      }
+      // Depth charges
+      for(let i=this.depthCharges.length-1;i>=0;i--){const dc=this.depthCharges[i];dc.y+=dc.speed*dt;dc.life-=dt;const dx=this.player.x-dc.x,dy=this.player.depth-dc.y;const dist=Math.sqrt(dx*dx+dy*dy);const atTgt=dc.targetY&&dc.y>=dc.targetY;if(dc.life<=0||dc.y>=WH||atTgt||dist<dc.explodeRadius){const close=dist<dc.explodeRadius;this.explosions.push({x:dc.x,y:dc.y,radius:close?10:5,maxR:close?38:22,alpha:1});sfxExp();if(close){const dmg=dc.damage*(1-dist/dc.explodeRadius);this.player.armorIntegrity-=dmg*15;this.player.hullStress+=dmg*20;this.msg(`!!! 深水炸弹爆炸！距离${Math.round(dist)}米`)}this.depthCharges.splice(i,1)}}
+      // Explosions
+      for(let i=this.explosions.length-1;i>=0;i--){const ex=this.explosions[i];ex.radius+=(ex.maxR-ex.radius)*0.1;ex.alpha-=dt*1.5;if(ex.alpha<=0)this.explosions.splice(i,1)}
+      // Enemies
+      for(const e of this.enemies)e.update(dt,this);
+      // Wrecks
+      for(const w of this.wrecks){if(w.timer>0)w.timer-=dt;if(w.looted)continue;const dx=this.player.x-w.x,dy=this.player.depth-w.depth;const wasNear=w.nearPlayer;w.nearPlayer=Math.sqrt(dx*dx+dy*dy)<30&&w.timer<=0;if(w.nearPlayer&&!wasNear){this.msg(`发现${w.type==='destroyer'?'驱逐舰':w.type==='submarine'?'潜艇':'商船'}残骸！按2或点击大白鲨小组可搜索`)}}
+      // Message timers
+      for(let i=this.messageLog.length-1;i>=0;i--){this.messageLog[i].timer-=dt;if(this.messageLog[i].timer<=0)this.messageLog.splice(i,1)}
+      for(let i=this.alertMessages.length-1;i>=0;i--){this.alertMessages[i].timer-=dt;if(this.alertMessages[i].timer<=0)this.alertMessages.splice(i,1)}
+      // Surface danger
+      this.surfaceDanger=this.player.depth<30?Math.max(0,1-this.player.depth/30):0;
+      // Breach
+      if(this.breaching){this.breachProgress+=dt/8;if(this.breachProgress>=1){this.breachProgress=0;this.breaching=false;this.player.oxygen=100;this.msg('氧气补充完毕！')}}
+      // Battery swap
+      if(this.batterySwapping){this.batterySwapProgress+=dt/15;if(this.batterySwapProgress>=1){this.batterySwapProgress=0;this.batterySwapping=false;if(this.player.batteries>0){this.player.batteries--;this.player.power=100;this.msg('电池更换完毕！')}}}
+      // Events
+      this.eventCooldown-=dt;if(this.eventCooldown<=0&&!this.activeEvent){this.checkEvents()}
+      // === ENEMY SPAWN SYSTEM ===
+      this.enemySpawnTimer-=dt;
+      if(this.enemySpawnTimer<=0){
+        // Surface: many more enemies (patrols spot you)
+        if(this.player.depth<15){this.spawnEnemy('destroyer');if(Math.random()<0.4)this.spawnEnemy('destroyer')}
+        else if(this.player.depth<40){this.spawnRandomEnemy();if(Math.random()<0.2)this.spawnEnemy('merchant')}
+        else{this.spawnRandomEnemy()}
+        const dspd=Math.max(0.4,1-getDiffLevel(this.gameTime)*0.04);
+        this.enemySpawnTimer=((this.player.depth<15)?(14+Math.random()*22):(this.player.depth<40)?(25+Math.random()*36):(35+Math.random()*50))*dspd;
+      }
+      // Surface danger: patrol aircraft spot you
+      if(this.player.depth<5&&Math.random()<0.008*dt){this.spawnEnemy('destroyer');this.alert('!!! 巡逻机发现水面航行的潜艇！驱逐舰出动！',true);this.msg('警告：在水面停留过久！')}
+      // Surface: enemies detect you and converge
+      if(this.player.depth<25){for(const e of this.enemies){if(e.type==='destroyer'&&!e.sonarMarked&&Math.sqrt((e.x-this.player.x)**2+(e.y-this.player.depth)**2)<350){e.sonarMarked=true;e.markedTimer=600}}}
+      // Submarine ambush
+      if(Math.random()<0.001*dt&&this.player.depth>20){const amb=this.spawnEnemy('submarine');amb.x=this.player.x+(Math.random()>0.5?1:-1)*(50+Math.random()*50);amb.y=this.player.depth+(Math.random()-0.5)*40;amb.ambush=true;this.alert('!!! 被动声呐：近距离螺旋桨噪音！',true);this.msg('警告！敌方潜艇正在逼近！')}
+      // === KILL STREAK ===
+      if(this._lastKillTime&&this.gameTime-this._lastKillTime>60)this._killStreak=0;
+      // === CONVOY TRAFFIC ===
+      if(Math.random()<0.003*dt){this.spawnEnemy('merchant',800+Math.random()*(WW-1600),0)}
+      // === DIFFICULTY LEVEL UP ===
+      const newDL=getDiffLevel(this.gameTime);if(newDL>0&&newDL!==this._lastDL){this._lastDL=newDL;this.msg(`⚠ 难度提升！Lv.${newDL} — 敌人更强、更频繁`);if(newDL%3===0)this.alert(`深度警戒！难度已达 Lv.${newDL}`,true)}
+      // Game over
+      this.checkGO();
+    }
+    // Bubbles always update
+    updateBubbles(dt);
+    // Spawn bubbles near player
+    if(Math.random()<0.3&&this.state===ST.PLAY)spawnBubbles(this.player.x,this.player.depth,1);
+  }
+
+  spawnRandomEnemy(){const types=['destroyer','submarine','submarine','merchant','merchant','merchant','merchant','merchant','merchant','merchant','merchant','merchant','merchant','cruiser'];const t=types[Math.floor(Math.random()*types.length)];const e=this.spawnEnemy(t);
+    // Escort cruiser for merchants (35% chance)
+    if(t==='merchant'&&Math.random()<0.35){const esc=this.spawnEnemy('cruiser',e.x+40+Math.random()*80,0);esc.escortTarget=e;esc.vx=e.vx}
+    // Maintain cruiser count near ports
+    const usCruisers=this.enemies.filter(e=>e.type==='cruiser'&&e.x<600).length;
+    const ukCruisers=this.enemies.filter(e=>e.type==='cruiser'&&e.x>WW-600).length;
+    if(usCruisers<3&&Math.random()<0.2)this.spawnEnemy('cruiser',200+Math.random()*400,0);
+    if(ukCruisers<3&&Math.random()<0.2)this.spawnEnemy('cruiser',WW-600+Math.random()*400,0);
+  }
+
+  checkEvents(){
+    const d=this.player.depth,evs=[];
+    const r=(p)=>Math.random()<p;
+    // 1. Thermal layer trap
+    if(d>=80&&d<=160&&r(0.5))evs.push({title:'诡异的「热跃层」陷阱',description:'北冰洋小组（康拉德）报告："长官，水温在3秒内下降了7度，热跃层极其不稳定。声呐波在这里会发生折射，我们可能会看到幽灵回波，甚至撞上海底山脉而毫无预警！"',choices:[{label:'A. 低速渗透',result:'安全，但氧气消耗+15%。',consequences:{oxygen:-15,message:'低速穿过热跃层，氧气消耗增加。'}},{label:'B. 发射声呐浮标',result:'精准探测，但暴露位置。',consequences:{spawnEnemy:'destroyer',message:'声呐浮标惊动了敌方驱逐舰！'}},{label:'C. 紧急上浮突破',result:'避开风险，但暴露在浅层。',consequences:{spawnEnemy:'destroyer',hullStress:10,message:'热跃层被打破，潜艇位置暴露！'}}]});
+    // 2. Oxygen valve freeze
+    if(d<=50&&this.player.oxygen<80&&r(0.45))evs.push({title:'氧气阀结冰堵塞',description:'巨鲸小组（奥托）焦急呼喊："通风管道的氧气阀门被冰晶堵死了！舱内二氧化碳浓度正在上升，士兵们开始头痛！"',choices:[{label:'A. 猎鹰小组手动除冰',result:'安全修复，潜艇静止。',consequences:{message:'猎鹰小组成功除冰，氧气系统恢复正常。'}},{label:'B. 酒精冲洗管道',result:'快速解冻，士气-10%。',consequences:{morale:-10,message:'解冻成功，但医用酒精耗尽。'}},{label:'C. 强行超压供氧',result:'装甲-8%，氧气消耗+5%。',consequences:{armor:-8,oxygen:-5,message:'管道受损，氧气消耗永久提升。'}}]});
+    // 3. Minefield
+    if(d<=160&&r(0.4))evs.push({title:'漂浮的「海军水雷」群',description:'瞭望员尖叫："左舷30米，疑似球形物体！啊，是锚雷！我们闯进了雷区！"',choices:[{label:'A. 微速倒车退回',result:'安全，氧气-10%。',consequences:{oxygen:-10,spawnEnemy:'destroyer',message:'安全退出，但噪音引来驱逐舰。'}},{label:'B. 引爆诱饵弹',result:'船体压力+15%。',consequences:{hullStress:15,message:'通道清出，冲击波震得船体嘎吱作响。'}},{label:'C. 大白鲨小组排雷',result:'70%成功率。',consequences:Math.random()<0.7?{message:'蛙人小队成功排雷！'}:{armor:-30,message:'排雷失败！小队全灭，装甲-30%！'}}]});
+    // 4. Fuel fire
+    if(this.player.armorIntegrity<70&&r(0.5))evs.push({title:'燃油泄漏引发大火',description:'轮机长报告："二号柴油舱被震裂了！燃油溅到电机上，轮机舱起火了！浓烟正在扩散！"',choices:[{label:'A. 启动CO₂灭火',result:'电力中断30秒。',consequences:{power:-30,message:'大火扑灭，但电力中断。'}},{label:'B. 紧急上浮排烟',result:'引来空袭。',consequences:{spawnEnemy:'destroyer',message:'浓烟排出，但被侦察机发现！'}},{label:'C. 牺牲鱼雷管喷水',result:'2枚鱼雷报废。',consequences:{torpedoes:-2,message:'海水灭火成功，2枚鱼雷报废。'}}]});
+    // 5. Hospital ship
+    if(d>=80&&d<=200&&r(0.35))evs.push({title:'迷航的盟军「伤员船」',description:'北冰洋小组："目标没有护航，船体漆有巨大红十字。应该是盟军的医疗船。它挡住了我们前往目标区的最短路径。"',choices:[{label:'A. 绕路18海里',result:'骑士精神成就，氧气-20%。',consequences:{oxygen:-20,score:200,message:'遵守公约绕行，获得隐藏成就。'}},{label:'B. 鱼雷警告射击',result:'士气-5%，消耗1枚鱼雷。',consequences:{torpedoes:-1,morale:-5,message:'警告射击奏效，医疗船让路。'}},{label:'C. 伪装登船抢夺',result:'士气-15%，得分-300。',consequences:{morale:-15,score:-300,message:'抢夺医疗物资，沦为海盗行为。'}}]});
+    // 6. Ghost telegraph
+    if(d>160&&r(0.4))evs.push({title:'来自「海狼」的幽灵电报',description:'通讯兵："长官...我们收到了海狼号的明码电报，他们说前方20海里发现大规模护航队...但海狼号上个月已被确认沉没！"',choices:[{label:'A. 广播警告心理战',result:'士气+5%，敌方定位你。',consequences:{morale:5,message:'士气提升，但敌方锁定了信号源！'}},{label:'B. 将计就计回复',result:'50%概率成功欺骗。',consequences:Math.random()<0.5?{score:500,message:'欺骗成功！敌护航队改道！'}:{spawnEnemy:'destroyer',message:'情报暴露！敌军追击翻倍！'}},{label:'C. 深潜静默不理',result:'士气-8%。',consequences:{morale:-8,message:'部分士兵认为这是不祥之兆。'}}]});
+    // 7. Convoy
+    if(d<=60&&r(0.45))evs.push({title:'发现盟军护航船队',description:'北冰洋小组报告："长官！声呐探测到大规模螺旋桨噪音，方位045，距离约15海里。分析显示至少3艘运输船，2艘驱逐舰护航！"',choices:[{label:'A. 潜入攻击（激进）',result:'发射鱼雷攻击船队核心。',consequences:{score:800,spawnEnemy:'destroyer',message:'鱼雷命中商船！但护航驱逐舰疯狂反击！'}},{label:'B. 外围袭扰',result:'攻击外侧商船后撤离。',consequences:{score:400,spawnEnemy:'destroyer',message:'击沉1艘商船，驱逐舰正在搜索你。'}},{label:'C. 放过船队',result:'避免暴露，继续潜航。',consequences:{message:'放过船队，安全第一。士气-5%',morale:-5}}]});
+    // 8. Storm
+    if(d<=30&&r(0.4))evs.push({title:'北大西洋暴风雨',description:'海面突然刮起十级大风！巨浪让潜艇剧烈摇晃。甲板瞭望员报告能见度几乎为零——但这也意味着敌舰同样看不到我们。',choices:[{label:'A. 借风暴掩护突袭',result:'利用天气接近敌舰。',consequences:{spawnEnemy:'merchant',message:'风暴掩护下，一艘落单商船就在附近！'}},{label:'B. 深潜避风',result:'安全，但消耗时间。',consequences:{oxygen:-10,message:'深潜避开风暴，氧气额外消耗。'}},{label:'C. 上浮充电',result:'借机补充电力。',consequences:{power:30,message:'风暴掩护下安全上浮，电力+30%！'}}]});
+    // 9. Rescued pilot
+    if(d>=30&&d<=160&&r(0.35))evs.push({title:'发现德军落水飞行员',description:'北冰洋小组："长官！前方发现一个救生筏，上面有德军空军标志！应该是被击落的侦察机飞行员。"',choices:[{label:'A. 上浮营救',result:'获得情报奖励。',consequences:{score:300,message:'飞行员提供宝贵情报：前方有盟军船队航线！'}},{label:'B. 通讯上报位置',result:'呼叫救援，不暴露自己。',consequences:{message:'已上报坐标，救援队会处理。士气+3%。',morale:3}},{label:'C. 忽略继续任务',result:'任务优先。',consequences:{morale:-10,message:'见死不救，部分船员感到寒心。'}}]});
+    // 10. Enemy sonar
+    if(d>=80&&r(0.45))evs.push({title:'警告：敌方主动声呐！',description:'北冰洋小组紧急报告："侦测到高强度声呐脉冲！特征匹配盟军驱逐舰的ASDIC系统。他们正在进行扇形扫描...正在接近！"',choices:[{label:'A. 紧急深潜+静默',result:'关闭所有噪音源。',consequences:{power:-10,message:'静默潜航中...躲过扫描。'}},{label:'B. 释放噪音诱饵',result:'消耗诱饵迷惑敌人。',consequences:{message:'诱饵成功吸引声呐员注意。'}},{label:'C. 主动迎击',result:'发射鱼雷先发制人。',consequences:{spawnEnemy:'destroyer',message:'先发制人！驱逐舰被击中！'}}]});
+    // 11. UNIVERSAL: Crew morale report (any depth)
+    if(r(0.4))evs.push({title:'艇内士气报告',description:'巨鲸小组（奥托）提交例行报告："长官，长时间潜航让士兵们精神紧张。建议考虑上浮休整或给予激励。"',choices:[{label:'A. 发表鼓舞演讲',result:'士气+10%。',consequences:{morale:10,message:'全体官兵士气大振！铁十字号继续前进！'}},{label:'B. 配发额外口粮',result:'消耗补给，士气+5%。',consequences:{morale:5,oxygen:-5,message:'巧克力配发下去，士兵们露出笑容。'}},{label:'C. 保持现状',result:'士气-3%。',consequences:{morale:-3,message:'潜艇继续潜航，气氛略显压抑。'}}]});
+    // 12. UNIVERSAL: Engine trouble (any depth)
+    if(r(0.35))evs.push({title:'轮机舱异常振动',description:'巨鲸小组报告："长官，左舷电机轴承温度异常升高！可能是长时间运转导致润滑不足。再这样下去可能会卡死！"',choices:[{label:'A. 停机检修',result:'潜艇静止30秒，电力-5%。',consequences:{power:-5,message:'轴承重新润滑，电机恢复正常。'}},{label:'B. 降低航速',result:'继续航行但速度减半。',consequences:{message:'降低航速，温度缓慢下降。'}},{label:'C. 冒险继续',result:'有几率电机损坏。',consequences:Math.random()<0.4?{power:-20,message:'电机卡死！电力急剧下降！'}:{message:'侥幸没事，但轮机长强烈抗议。',morale:-5}}]});
+    if(evs.length>0){this.triggerEvent(evs[Math.floor(Math.random()*evs.length)]);this.eventCooldown=90+Math.random()*150}
+    else{this.eventCooldown=20+Math.random()*25}
+  }
+
+  checkGO(){if(this.player.oxygen<=0)this.endGame('氧气耗尽！全体船员窒息身亡...');else if(this.player.hullStress>=100)this.endGame('船体压力过大！潜艇被水压碾碎...');else if(this.player.armorIntegrity<=0)this.endGame('船体完全解体！铁十字号沉入深海...')}
+  endGame(r){this.state=ST.OVER;this.gameOverReason=r;this.gameOverTimer=1.5;svS('指挥官',this.score);this.highScores=ldS();this.msg('=== 游戏结束 ===');this.msg(r);this.msg(`最终得分: ${this.score}`)}
+
+  killEnemy(e,i){
+    let pts=0;switch(e.type){case'cruiser':pts=1200;break;case'destroyer':pts=800;break;case'submarine':pts=500;break;case'merchant':pts=500;break}
+    this._totalKills++;this._killStreak=(this._killStreak||0)+1;this._lastKillTime=this.gameTime;
+    if(this._killStreak>=3){pts=Math.floor(pts*(1+this._killStreak*0.25));this.msg(`🔥 ${this._killStreak}连杀！得分x${(1+this._killStreak*0.25).toFixed(1)}`)};
+    if(this._killStreak===5)this.msg('🏅 王牌指挥官！5连杀成就！');
+    if(this._killStreak===10)this.msg('👑 深海猎手！10连杀成就！');
+    if(this._totalKills===1)this.msg('🎖 首杀！铁十字号的第一个战果！');
+    this.score+=pts;
+    const typeName=e.type==='cruiser'?'巡洋舰':e.type==='destroyer'?'驱逐舰':e.type==='submarine'?'敌方潜艇':'商船';
+    this.msg(`击沉${typeName}！+${pts}分`);
+    this.wrecks.push({x:e.x,y:e.y,depth:e.y,type:e.type,timer:45,nearPlayer:false,looted:false,
+      loot:{torpedoes:1+Math.floor(Math.random()*4),power:25+Math.random()*40,cruiseTorps:Math.random()<0.3?1:0,missile:Math.random()<0.15?1:0}});
+    this.explosions.push({x:e.x,y:e.y,radius:8,maxR:42,alpha:1});this.enemies.splice(i,1);
+    spawnBubbles(e.x,e.y,15);
+    // Merchant attacked: escort cruiser or nearby warships respond
+    if(e.type==='merchant'){
+      // Escort responds immediately
+      for(const en of this.enemies){if(en.type==='cruiser'&&en.escortTarget===e){en.sonarMarked=true;en.markedTimer=600;en.vx=Math.sign(this.player.x-en.x)*en.speed;this.msg('商船的护航巡洋舰急速赶来！');break}}
+      setTimeout(()=>{if(this.state===ST.PLAY){this.spawnEnemy('destroyer',e.x+100,0);this.msg('港口的驱逐舰赶来增援！')}},4000);
+    }
+    if(e.type==='cruiser'&&Math.random()<0.4)setTimeout(()=>{if(this.state===ST.PLAY){this.spawnEnemy('destroyer',e.x+80,0);this.msg('巡洋舰的求救信号引来了增援！')}},5000);
+    if(e.type==='destroyer'&&Math.random()<0.2)setTimeout(()=>{if(this.state===ST.PLAY){this.spawnEnemy('destroyer',e.x+100,0);this.msg('驱逐舰的求救信号引来了友军舰艇！')}},7000);
+  }
+
+  fireTorp(target,type='normal'){
+    if(this.batterySwapping){this.msg('正在更换电池，无法发射！');return}
+    if(type==='missile'&&target.y>0){this.msg('导弹只能攻击水面舰艇！');return}
+    const avail=type==='normal'?this.player.normalTorps:type==='cruise'?this.player.cruiseTorps:this.player.missiles;
+    if(avail<=0){this.msg(`${type==='normal'?'普通鱼雷':type==='cruise'?'巡航鱼雷':'导弹'}已耗尽！`);return}
+    let hitChance=1;
+    if(type==='normal'){const dist=Math.sqrt((target.x-this.player.x)**2+(target.y-this.player.depth)**2);hitChance=0.4+0.4*Math.max(0,1-dist/250)}
+    else if(type==='cruise'){hitChance=0.85}
+    else if(type==='missile'){hitChance=0.9}
+    const dmg=type==='normal'?35:type==='cruise'?55:85;
+    if(type==='normal')this.player.normalTorps--;else if(type==='cruise')this.player.cruiseTorps--;else this.player.missiles--;
+    this.player.power-=type==='missile'?10:type==='cruise'?7:5;
+    const ang=Math.atan2(target.y-this.player.depth,target.x-this.player.x);const spd=type==='cruise'?280:type==='missile'?350:200;
+    this.torpedoes.push({x:this.player.x,y:this.player.depth,angle:ang,speed:spd,life:10,damage:dmg,type,hitChance});sfxTorp();
+    this.msg(`发射${type==='normal'?'普通鱼雷':type==='cruise'?'巡航鱼雷':'导弹'}！命中:${Math.round(hitChance*100)}% 伤害:${dmg}`);
+    if(hitChance<1){const t=this.torpedoes[this.torpedoes.length-1];setTimeout(()=>{const idx=this.torpedoes.indexOf(t);if(idx>=0){this.torpedoes.splice(idx,1);const mx=this.player.x+Math.cos(ang)*150,my=this.player.depth+Math.sin(ang)*150;this.explosions.push({x:mx,y:Math.max(0,my),radius:3,maxR:12,alpha:1});this.msg('鱼雷未命中目标！')}},2000)}
+  }
+
+  // ===== RENDER =====
+  render(){
+    cx.fillStyle='#000';cx.fillRect(0,0,W,H);
+    switch(this.state){
+      case ST.MENU:this.rMenu();break;case ST.LOADING:this.rLoading();break;case ST.INTRO:this.rIntro();break;
+      case ST.PLAY:case ST.PAUSE:case ST.CREW:case ST.EVENT:this.rGame();break;
+      case ST.OVER:this.rOver();break;case ST.SCORES:this.rScores();break;case ST.HELP:this.rHelp();break;
+    }
+    if(this.state===ST.PAUSE)this.rPause();
+    if(this.state===ST.CREW)this.rCrew();
+    if(this.state===ST.EVENT)this.rEvent();
+  }
+
+  rMenu(){
+    // Deep ocean gradient
+    const g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#020c18');g.addColorStop(0.25,'#06182c');g.addColorStop(0.6,'#030e1a');g.addColorStop(1,'#010408');cx.fillStyle=g;cx.fillRect(0,0,W,H);
+
+    // === SKY (day cycle) ===
+    const dp=dayPhase(this._dayT||0);
+    const skyG=cx.createLinearGradient(0,0,0,190);skyG.addColorStop(0,dp.top);skyG.addColorStop(0.5,dp.mid);skyG.addColorStop(1,dp.bot);cx.fillStyle=skyG;cx.fillRect(0,0,W,190);
+    // Sun
+    if(dp.sunVisible){
+      const sunG=cx.createRadialGradient(dp.sunX,dp.sunY,6,dp.sunX,dp.sunY,70);
+      sunG.addColorStop(0,'rgba(255,250,220,0.95)');sunG.addColorStop(0.1,'rgba(255,240,180,0.6)');sunG.addColorStop(0.4,'rgba(255,200,100,0.15)');sunG.addColorStop(1,'rgba(0,0,0,0)');
+      cx.fillStyle=sunG;cx.fillRect(dp.sunX-70,dp.sunY-70,140,140);
+      cx.fillStyle='#fffde8';cx.beginPath();cx.arc(dp.sunX,dp.sunY,8,0,Math.PI*2);cx.fill();
+    }
+    // Clouds (fade at night)
+    cx.globalAlpha=dp.cloudAlpha;
+    for(let c=0;c<5;c++){
+      const cwx=((70+c*195+this.gameTime*0.6)%(W+140))-70,cwy=18+c*26;
+      cx.fillStyle='rgba(255,255,255,0.7)';cx.beginPath();cx.arc(cwx,cwy,19,0,Math.PI*2);cx.fill();
+      cx.fillStyle='rgba(255,255,255,0.5)';cx.beginPath();cx.arc(cwx+22,cwy-2,13,0,Math.PI*2);cx.fill();
+      cx.fillStyle='rgba(255,255,255,0.55)';cx.beginPath();cx.arc(cwx-14,cwy+3,15,0,Math.PI*2);cx.fill();
+    }
+    // Moon + stars at night
+    if(dp.cloudAlpha<0.3){
+      const na=(0.3-dp.cloudAlpha)*3;
+      // Moon
+      cx.globalAlpha=na;const mx=W*0.75,my=40;const moonGlow=cx.createRadialGradient(mx,my,4,mx,my,40);moonGlow.addColorStop(0,'rgba(255,250,220,0.9)');moonGlow.addColorStop(0.3,'rgba(255,250,220,0.3)');moonGlow.addColorStop(1,'rgba(0,0,0,0)');cx.fillStyle=moonGlow;cx.fillRect(mx-40,my-40,80,80);cx.fillStyle='#fffde8';cx.beginPath();cx.arc(mx,my,7,0,Math.PI*2);cx.fill();
+      // Moon reflection on water
+      for(let r=0;r<5;r++){cx.fillStyle=`rgba(255,250,220,${0.15-r*0.03})`;cx.fillRect(mx-8+r*2,112+r*3,16-r*3,1.5)}
+      // Stars
+      for(let s=0;s<25;s++){const sx=(s*173+40)%W,sy=(s*97+15)%95;R.r(sx,sy,1,1,'rgba(255,255,255,0.7)')}
+    }
+    cx.globalAlpha=1;
+    // === OCEAN SURFACE ===
+    for(let i=0;i<W;i+=8){const wy=112+Math.sin(i*0.01+this.gameTime*0.01)*8+Math.sin(i*0.03+this.gameTime*0.016)*5;R.r(i,wy-1,7,3,dp.waveColor)}
+    for(let i=0;i<W;i+=22){const sy=110+Math.sin(i*0.018+this.gameTime*0.022)*7;cx.fillStyle='rgba(70,140,210,0.12)';cx.fillRect(i,sy-1,16,1.5)}
+
+    // Plankton particles
+    for(let i=0;i<45;i++){
+      const px=((i*143+this.gameTime*8)%(W+100))-50,py=160+((i*89+Math.sin(this.gameTime*0.2+i*2.5)*40)%(H-160));
+      R.bub(px,py,0.5+Math.random()*1.2,0.08+Math.sin(this.gameTime*0.4+i)*0.05);
+    }
+
+    // Submarine silhouette (larger, center-right)
+    cx.save();cx.globalAlpha=0.28;
+    const subX=W*0.58+Math.sin(this.gameTime*0.12)*20,subY=370+Math.sin(this.gameTime*0.1)*12;
+    R.sub(subX,subY,-1);
+    for(let i=0;i<10;i++){const bx=subX+30+i*7+Math.sin(this.gameTime*2+i)*4,by=subY-2+Math.random()*6;R.bub(bx,by,0.4+Math.random()*0.9,0.1)}
+    cx.restore();
+
+    // === SUBMARINE TITLE ===
+    // Large glow
+    const glowGrad=cx.createRadialGradient(W/2,65,10,W/2,65,220);
+    glowGrad.addColorStop(0,'rgba(40,100,180,0.3)');glowGrad.addColorStop(0.3,'rgba(30,80,160,0.15)');glowGrad.addColorStop(0.6,'rgba(20,50,100,0.05)');glowGrad.addColorStop(1,'rgba(0,0,0,0)');
+    cx.fillStyle=glowGrad;cx.fillRect(W/2-220,5,440,240);
+
+    // SUBMARINE title
+    R.t('S U B M A R I N E',W/2+1,81,40,'rgba(0,0,0,0.5)','center');
+    R.t('S U B M A R I N E',W/2,80,40,'#3a8fd4','center');
+
+    // Decorative bars
+    cx.strokeStyle='#1a4060';cx.lineWidth=1;cx.beginPath();cx.moveTo(W/2-200,100);cx.lineTo(W/2+200,100);cx.stroke();
+    cx.strokeStyle='#3a8fd4';cx.lineWidth=2.5;cx.beginPath();cx.moveTo(W/2-80,100);cx.lineTo(W/2+80,100);cx.stroke();
+
+    // Subtitle
+    R.t('A T L A N T I C   ·   1 9 4 3',W/2,125,14,'#6a90b0','center');
+    R.t('北大西洋潜艇战',W/2,148,12,'#557799','center');
+
+    // Periscope / sonar icon (simple)
+    const icoY=175;
+    cx.strokeStyle='#3a6a9a';cx.lineWidth=1.5;
+    cx.beginPath();cx.arc(W/2,icoY,18,0,Math.PI*2);cx.stroke();
+    cx.beginPath();cx.arc(W/2,icoY,12,0,Math.PI*2);cx.stroke();
+    cx.beginPath();cx.arc(W/2,icoY,6,0,Math.PI*2);cx.stroke();
+    cx.fillStyle='#3a8fd4';cx.beginPath();cx.arc(W/2,icoY,3,0,Math.PI*2);cx.fill();
+
+    // === MENU ITEMS ===
+    const menuY=240;
+    for(let i=0;i<this.menuItems.length;i++){
+      const my=menuY+i*44,sel=i===this.menuSel;
+      // Selection background
+      if(sel){
+        const selGrad=cx.createLinearGradient(W/2-160,my-15,W/2+160,my-15);
+        selGrad.addColorStop(0,'rgba(180,40,30,0)');selGrad.addColorStop(0.3,'rgba(180,40,30,0.2)');
+        selGrad.addColorStop(0.7,'rgba(180,40,30,0.2)');selGrad.addColorStop(1,'rgba(180,40,30,0)');
+        cx.fillStyle=selGrad;cx.fillRect(W/2-160,my-15,320,30);
+        // Accent lines
+        cx.strokeStyle='rgba(220,50,40,0.6)';cx.lineWidth=1;cx.beginPath();cx.moveTo(W/2-140,my-15);cx.lineTo(W/2+140,my-15);cx.stroke();
+        cx.beginPath();cx.moveTo(W/2-140,my+15);cx.lineTo(W/2+140,my+15);cx.stroke();
+        // Side markers
+        R.t('◆',W/2-150,my+5,8,'#d42030','center');R.t('◆',W/2+150,my+5,8,'#d42030','center');
+      }
+      // Text
+      cx.fillStyle=sel?'#ffd080':'#778899';
+      R.t(this.menuItems[i],W/2,my,sel?18:15,cx.fillStyle,'center');
+    }
+
+    // Bottom info
+    R.t('W / S  选择    ·    ENTER  确认    ·    鼠标点击',W/2,H-32,10,'#445566','center');
+
+    // Version / credits
+    R.t('U-Boat Type VIIC  ·  KmKmd  ·  Befehlshaber der U-Boote',W/2,H-14,8,'#334455','center');
+    // Volume control
+    const vx=W-180,vy=H-50;R.t('🔊 BGM',vx,vy+12,10,'#889');R.t(bgmAudio&&!bgmAudio.paused?'▶ 播放中':'⏸ 暂停',vx+60,vy+12,8,bgmAudio&&!bgmAudio.paused?'#8a8':'#666');
+    R.t('[-]',vx+140,vy+12,11,'#aaa','center');R.t('[+]',vx+195,vy+12,11,'#aaa','center');
+    R.t(`${Math.round(bgmVolume*100)}%`,vx+168,vy+12,9,'#ccc','center');
+    // Clickable volume zones
+    this._volRects=[{x:vx+130,y:vy,w:22,h:18,act:'down'},{x:vx+185,y:vy,w:22,h:18,act:'up'},{x:vx+55,y:vy,w:60,h:18,act:'toggle'}];
+  }
+
+  rLoading(){
+    // Background image
+    const img=document.getElementById('loadImg');
+    if(img&&img.complete&&img.naturalWidth>0){
+      cx.drawImage(img,0,0,W,H);
+    }else{
+      cx.fillStyle='#0a0a14';cx.fillRect(0,0,W,H);
+    }
+    // Dark overlay
+    cx.fillStyle='rgba(0,0,0,0.45)';cx.fillRect(0,0,W,H);
+    // Loading text
+    R.t('S U B M A R I N E',W/2,H/2-50,38,'#3a8fd4','center');
+    R.t('A T L A N T I C  ·  1 9 4 3',W/2,H/2-10,14,'#6a90b0','center');
+    // Loading bar
+    const bx=W/2-150,by=H/2+30;
+    cx.fillStyle='#1a1a2a';cx.fillRect(bx,by,300,4);
+    const prog=1-(this.loadTimer/5);
+    cx.fillStyle='#d42030';cx.fillRect(bx,by,300*prog,4);
+    // Dots animation
+    const dots='.'.repeat(Math.floor((5-this.loadTimer)*4)%4+1);
+    R.t(`加载中${dots}`,W/2,by+22,13,'#889','center');
+    R.t(`${Math.ceil(this.loadTimer)} 秒`,W/2,by+40,10,'#556','center');
+  }
+
+  rIntro(){
+    cx.fillStyle='#000';cx.fillRect(0,0,W,H);
+    // Subtle vignette and particles
+    const vg=cx.createRadialGradient(W/2,H/2,W*0.5,W/2,H/2,W*0.9);vg.addColorStop(0,'rgba(0,5,15,0)');vg.addColorStop(1,'rgba(0,0,0,0.6)');cx.fillStyle=vg;cx.fillRect(0,0,W,H);
+    for(let i=0;i<15;i++){const px=((i*137+this.gameTime*6)%(W+30))-15,py=((i*89+this.gameTime*8)%(H+30))-15;R.bub(px,py,0.5+Math.random()*1,0.1)}
+
+    // Current text with fade-in
+    if(this.introPhase<this.introTexts.length){
+      const txt=this.introTexts[this.introPhase];
+      const isSection=txt.startsWith('——')||txt.endsWith('——');
+      const isEmpty=txt==='';
+      if(!isEmpty){
+        cx.globalAlpha=Math.min(1,this.introTimer*2.5);
+        const c=isSection?'#8899aa':txt.startsWith('Gute')?'#d4a843':'#c8c0a0';
+        const sz=isSection?16:txt.startsWith('Gute')?26:txt.endsWith('先生.')?26:20;
+        R.t(txt,W/2,H/2,sz,c,'center');
+        cx.globalAlpha=1;
+      }
+    }
+
+    // Progress bar at bottom
+    const prog=this.introPhase/this.introTexts.length;
+    const pbx=W/2-200,pby=H-60;
+    cx.fillStyle='#1a1a2a';cx.fillRect(pbx,pby,400,3);
+    cx.fillStyle='#d4a843';cx.fillRect(pbx,pby,400*prog,3);
+    R.t(`${Math.round(prog*100)}%`,W/2,pby-6,9,'#555','center');
+
+    // Flicker hint
+    if(this.introTimer>1.2&&Math.sin(this.gameTime*3.5)>0)R.t('点击继续...',W/2,H-30,12,'#667','center');
+
+    // Skip button (top right)
+    const skx=W-120,sky=15,skw=105,skh=28;
+    const skHov=M.y>=sky&&M.y<=sky+skh&&M.x>=skx&&M.x<=skx+skw;
+    cx.fillStyle=skHov?'rgba(180,40,30,0.7)':'rgba(60,60,60,0.5)';
+    cx.fillRect(skx,sky,skw,skh);cx.strokeStyle=skHov?'#f66':'#555';cx.strokeRect(skx,sky,skw,skh);
+    R.t('跳过 ⏭',skx+skw/2,sky+19,11,skHov?'#fff':'#999','center');
+    R.t('(按 ESC)',skx+skw/2,sky+40,8,'#555','center');
+  }
+
+  rGame(){
+    const cx0=this.camera.x,cy0=this.camera.y;
+    // Ocean background with depth coloring
+    const dr=Math.max(2,15-this.player.depth*0.08),dg=Math.max(4,25-this.player.depth*0.12),db=Math.max(8,45-this.player.depth*0.18);
+    const og=cx.createLinearGradient(0,0,0,H);og.addColorStop(0,`rgb(${dr+8},${dg+15},${db+20})`);og.addColorStop(0.5,`rgb(${dr},${dg},${db})`);og.addColorStop(1,`rgb(${Math.max(1,dr-2)},${Math.max(1,dg-3)},${Math.max(2,db-5)})`);cx.fillStyle=og;cx.fillRect(0,0,W,H);
+    // === SKY & CLOUDS (day cycle) ===
+    const sy0=H/2-cy0*MTX;
+    if(sy0>-60){
+      const dp=dayPhase(this._dayT||0);
+      // Sky
+      const skyG=cx.createLinearGradient(0,0,0,Math.max(0,sy0));skyG.addColorStop(0,dp.top);skyG.addColorStop(0.5,dp.mid);skyG.addColorStop(1,dp.bot);
+      cx.fillStyle=skyG;cx.fillRect(0,0,W,Math.max(0,sy0));
+      // Sun
+      if(dp.sunVisible&&dp.sunY<sy0-8){
+        const sunG=cx.createRadialGradient(dp.sunX,dp.sunY,5,dp.sunX,dp.sunY,65);
+        sunG.addColorStop(0,'rgba(255,250,220,0.9)');sunG.addColorStop(0.1,'rgba(255,240,180,0.5)');sunG.addColorStop(0.4,'rgba(255,200,100,0.12)');sunG.addColorStop(1,'rgba(0,0,0,0)');
+        cx.fillStyle=sunG;cx.fillRect(dp.sunX-65,dp.sunY-65,130,130);
+        cx.fillStyle='#fffde8';cx.beginPath();cx.arc(dp.sunX,dp.sunY,7,0,Math.PI*2);cx.fill();
+      }
+      // Clouds
+      cx.globalAlpha=dp.cloudAlpha;
+      for(let c=0;c<7;c++){
+        const cwx=((c*210+this.gameTime*1.5+cx0*0.02)%(W+180))-90,cwy=15+c*22;
+        if(cwy>sy0-15)continue;
+        cx.fillStyle='rgba(255,255,255,0.6)';cx.beginPath();cx.arc(cwx,cwy,18,0,Math.PI*2);cx.fill();
+        cx.fillStyle='rgba(255,255,255,0.45)';cx.beginPath();cx.arc(cwx+18,cwy-2,12,0,Math.PI*2);cx.fill();
+        cx.fillStyle='rgba(255,255,255,0.4)';cx.beginPath();cx.arc(cwx-12,cwy+3,14,0,Math.PI*2);cx.fill();
+      }
+      // Moon at night
+      if(dp.cloudAlpha<0.35){const na=(0.35-dp.cloudAlpha)*2.5;cx.globalAlpha=na;const mx=W*0.72,my=35;const moonGlow=cx.createRadialGradient(mx,my,3,mx,my,35);moonGlow.addColorStop(0,'rgba(255,250,220,0.85)');moonGlow.addColorStop(0.4,'rgba(255,250,220,0.2)');moonGlow.addColorStop(1,'rgba(0,0,0,0)');cx.fillStyle=moonGlow;cx.fillRect(mx-35,my-35,70,70);cx.fillStyle='#fffde8';cx.beginPath();cx.arc(mx,my,6,0,Math.PI*2);cx.fill();}
+      cx.globalAlpha=1;
+      // Ocean surface
+      cx.fillStyle=dp.waveColor;cx.fillRect(0,sy0-2,W,4);
+      for(let sx=0;sx<W;sx+=5){const wy=sy0+Math.sin((sx+cx0)*0.02+this.gameTime*0.015)*4;R.r(sx,wy,4,2,dp.cloudAlpha>0.4?'#184a85':'#0a1a30')}
+      for(let sx=0;sx<W;sx+=20){const wy=sy0+Math.sin((sx+cx0)*0.03+this.gameTime*0.02)*3;cx.fillStyle=dp.cloudAlpha>0.4?'rgba(90,160,230,0.2)':'rgba(30,60,90,0.1)';cx.fillRect(sx,wy-1,12,2)}
+      cx.strokeStyle=dp.cloudAlpha>0.4?'#2560a0':'#0a1a30';cx.lineWidth=2;cx.beginPath();for(let sx=0;sx<=W;sx+=4){const wy=sy0+Math.sin((sx+cx0)*0.02+this.gameTime*0.015)*4;sx===0?cx.moveTo(sx,wy):cx.lineTo(sx,wy)}cx.stroke();
+    }
+    // Depth darkness
+    if(this.player.depth>25){const dk=Math.min(0.82,(this.player.depth-25)/160);cx.fillStyle=`rgba(0,3,12,${dk})`;cx.fillRect(0,0,W,H)}
+    // Light rays (shallow)
+    if(this.player.depth<70){const ra=Math.max(0,1-this.player.depth/70)*0.08;for(let rx=-120;rx<W+120;rx+=35){cx.fillStyle=`rgba(140,200,240,${ra})`;cx.beginPath();cx.moveTo(rx+Math.sin(rx*0.1+this.gameTime*0.08)*8,0);cx.lineTo(rx+18+Math.sin(rx*0.1+this.gameTime*0.08)*8,H);cx.lineTo(rx-14+Math.sin(rx*0.1+this.gameTime*0.08)*8,H);cx.fill()}}
+    // Plankton particles
+    for(let i=0;i<40;i++){const px=((i*157+cx0*0.25)%(W+50))-25,py=((i*103+cy0*0.15+H)%(H+50))-25;R.bub(px,py,0.5+Math.random()*1,Math.max(0.04,0.25-this.player.depth/250))}
+    // Bubbles
+    for(const b of bubbles){const bx=W/2+(b.x-cx0)*MTX,by=H/2+(b.y-cy0)*MTX;if(bx>-10&&bx<W+10&&by>-10&&by<H+10)R.bub(bx,by,b.size,b.life)}
+    // === COASTLINES & PORTS ===
+    const usaX=W/2+(250-cx0)*MTX,ukX=W/2+(WW-250-cx0)*MTX;
+    (function drawCoast(cx0,isUK,sy0,cy0){
+    if(cx0<-150||cx0>W+150)return;
+    const shoreY=sy0,dir=isUK?-1:1;
+    const landEdge=isUK?Math.min(W,cx0+dir*60):Math.max(0,cx0-dir*60);
+    const worldX=isUK?(WW-250):250;
+    const sfd=game.sfDepth(worldX);
+    const sfY=H/2+(sfd-cy0)*MTX;
+
+    // === LAND MASS (rock/earth below surface) ===
+    // Deep rock layer
+    cx.fillStyle='#3a3530';if(isUK)cx.fillRect(landEdge,shoreY,W-landEdge+60,Math.max(0,sfY-shoreY));else cx.fillRect(0,shoreY,landEdge+60,Math.max(0,sfY-shoreY));
+    // Rock strata
+    const rockGrad=cx.createLinearGradient(0,shoreY,0,shoreY+80);
+    rockGrad.addColorStop(0,'#5a5040');rockGrad.addColorStop(0.2,'#4a4035');rockGrad.addColorStop(0.6,'#3a3530');rockGrad.addColorStop(1,'#2a2520');
+    cx.fillStyle=rockGrad;
+    if(isUK)cx.fillRect(landEdge,shoreY,W-landEdge+60,80);else cx.fillRect(0,shoreY,landEdge+60,80);
+    // Rock texture
+    cx.fillStyle='rgba(80,70,55,0.3)';
+    for(let i=0;i<15;i++){const rx=isUK?(landEdge+20+Math.random()*(W-landEdge)):(Math.random()*landEdge);const ry=shoreY+10+Math.random()*60;R.r(rx,ry,4+Math.random()*8,2+Math.random()*3,'rgba(90,80,60,0.3)')}
+
+    // Sandy beach (thin strip at waterline)
+    cx.fillStyle='#c4b890';if(isUK)cx.fillRect(landEdge,shoreY-5,W-landEdge+60,12);else cx.fillRect(0,shoreY-5,landEdge+60,12);
+    cx.fillStyle='rgba(220,210,190,0.5)';for(let i=0;i<20;i++){const bx=isUK?(landEdge+20+Math.random()*(W-landEdge)):(Math.random()*landEdge);const by=shoreY-3+Math.random()*8;R.r(bx,by,1.5,1,'rgba(230,220,200,0.4)')}
+
+    // Green grass/cliff above beach
+    const grassGrad=cx.createLinearGradient(0,shoreY-60,0,shoreY-5);
+    grassGrad.addColorStop(0,'#4a6a3a');grassGrad.addColorStop(1,'#3a5a2a');
+    cx.fillStyle=grassGrad;
+    if(isUK)cx.fillRect(landEdge,shoreY-55,W-landEdge+60,50);else cx.fillRect(0,shoreY-55,landEdge+60,50);
+
+    // === CITY SKYLINE ===
+    const cityBaseX=isUK?cx0+40:cx0-40;
+    const buildings=[
+      {w:22,h:55,c:'#556878'},{w:16,h:75,c:'#6a7a8a'},{w:28,h:48,c:'#4a5868'},
+      {w:14,h:90,c:'#5a6878'},{w:20,h:65,c:'#4d5d6d'},{w:18,h:52,c:'#586878'},
+      {w:24,h:70,c:'#526272'},{w:12,h:60,c:'#607080'},{w:16,h:85,c:'#4e5e6e'},
+      {w:20,h:45,c:'#5c6c7c'},{w:26,h:58,c:'#4a5a6a'},{w:15,h:72,c:'#556575'},
+    ];
+    for(let i=0;i<buildings.length;i++){
+      const b=buildings[i];const bx=cityBaseX+(isUK?i*22:-(i*22+20));
+      if(bx<-30||bx>W+30)continue;
+      // Building body
+      const bGrad=cx.createLinearGradient(bx,shoreY-b.h,bx,shoreY-35);
+      bGrad.addColorStop(0,'#8898a8');bGrad.addColorStop(0.3,b.c);bGrad.addColorStop(1,'#3a4858');
+      cx.fillStyle=bGrad;cx.fillRect(bx,shoreY-b.h,b.w,b.h-25);
+      // Windows (lit)
+      for(let wy=shoreY-b.h+10;wy<shoreY-40;wy+=12){
+        for(let wx=bx+3;wx<bx+b.w-4;wx+=7){
+          if(Math.random()<0.7){cx.fillStyle=`rgba(255,240,200,${0.3+Math.random()*0.5})`;cx.fillRect(wx,wy,4,5)}
+        }
+      }
+      // Roof
+      cx.fillStyle='#3a4858';cx.fillRect(bx-1,shoreY-b.h,b.w+2,4);
+    }
+
+    // === FLAG ===
+    const flagX=isUK?cityBaseX+120:cityBaseX-120,flagY=shoreY-65;
+    const flagPoleH=55;
+    cx.fillStyle='#ddd';cx.fillRect(flagX-1,flagY-flagPoleH,2,flagPoleH);
+    cx.fillStyle='#888';cx.fillRect(flagX-2,flagY-flagPoleH-2,4,4);
+    if(isUK){
+      // UK Union Jack (simplified)
+      cx.fillStyle='#224488';cx.fillRect(flagX,flagY-flagPoleH+5,22,14);
+      cx.fillStyle='#cc3333';cx.fillRect(flagX+9,flagY-flagPoleH+5,2,14);
+      cx.fillRect(flagX,flagY-flagPoleH+9,22,2);
+      cx.fillStyle='#ffffff';cx.fillRect(flagX+8,flagY-flagPoleH+5,4,14);
+      cx.fillRect(flagX,flagY-flagPoleH+8,22,4);
+      R.t('🇬🇧 英国 · 利物浦港',flagX+25,flagY-flagPoleH+15,10,'#ccd');
+      // Big Ben
+      const bbX=cityBaseX-160,bbY=shoreY-55;
+      cx.fillStyle='#8a7a60';cx.fillRect(bbX-4,bbY-50,8,50); // tower
+      cx.fillStyle='#9a8a70';cx.fillRect(bbX-3,bbY-52,6,3); // top section
+      cx.fillStyle='#aa9a80';cx.fillRect(bbX-5,bbY-58,10,8); // clock section
+      cx.fillStyle='#ffdd88';cx.beginPath();cx.arc(bbX,bbY-55,3,0,Math.PI*2);cx.fill(); // clock face
+      cx.fillStyle='#333';cx.fillRect(bbX,bbY-55,1,1); // clock hands
+      cx.fillStyle='#8a7a60';cx.fillRect(bbX-1,bbY-68,2,10); // spire
+      cx.fillStyle='#9a8a70';cx.fillRect(bbX-2,bbY-72,4,4); // top
+    }else{
+      // USA Stars & Stripes
+      cx.fillStyle='#224488';cx.fillRect(flagX,flagY-flagPoleH+5,8,8);
+      for(let r=0;r<6;r++){cx.fillStyle=r%2===0?'#cc3333':'#ffffff';cx.fillRect(flagX,flagY-flagPoleH+5+r*2.2,22,2.2)}
+      cx.fillStyle='#ffffff';for(let s=0;s<3;s++){cx.fillRect(flagX+2+s*3,flagY-flagPoleH+6,1,6)}
+      R.t('🇺🇸 美国 · 纽约港',flagX-105,flagY-flagPoleH+15,10,'#ccd');
+      // Statue of Liberty
+      const solX=cityBaseX-180,solY=shoreY-55;
+      cx.fillStyle='#5a8a7a';cx.fillRect(solX-3,solY-30,6,30); // pedestal
+      cx.fillStyle='#7aaa9a';cx.fillRect(solX-4,solY-35,8,5); // base
+      cx.fillStyle='#6a9a8a';cx.fillRect(solX-1,solY-50,2,15); // body
+      cx.fillStyle='#7aaa9a';cx.beginPath();cx.arc(solX,solY-54,4,0,Math.PI*2);cx.fill(); // head
+      cx.fillStyle='#7aaa9a';cx.fillRect(solX+3,solY-45,5,1); // torch arm
+      cx.fillStyle='#ffcc44';cx.fillRect(solX+7,solY-46,2,3); // torch flame
+      cx.fillStyle='#5a8a7a';cx.fillRect(solX-2,solY-40,4,1.5); // tablet
+    }
+
+    // === DOCKS & CRANES ===
+    const dockY=shoreY-5;
+    for(let d=0;d<3;d++){
+      const dx=isUK?cityBaseX-40+d*40:cityBaseX+10+d*35;
+      cx.fillStyle='#7a6a50';cx.fillRect(dx,dockY,32,6);
+      cx.fillStyle='#8a7a60';cx.fillRect(dx+2,dockY-2,28,3);
+      // Dock pilings
+      for(let p=0;p<4;p++){cx.fillStyle='#5a4a3a';cx.fillRect(dx+3+p*8,dockY+6,3,8)}
+      // Crane
+      cx.fillStyle='#667';cx.fillRect(dx+13,dockY-30,3,28);
+      cx.fillStyle='#778';cx.fillRect(dx+10,dockY-33,9,4);
+      cx.fillStyle='#556';cx.fillRect(dx+6,dockY-35,18,2);
+    }
+
+    // Patrol zone
+    cx.fillStyle='rgba(220,50,20,0.05)';
+    if(isUK)cx.fillRect(cityBaseX-150,shoreY-140,350,200);
+    else cx.fillRect(cityBaseX-200,shoreY-140,350,200);
+    R.t('⚠ 港口警戒区 · 高密度巡逻',isUK?cityBaseX:cityBaseX-50,shoreY-145,7,'#d88','center');
+  })(usaX,false,sy0,cy0);(function drawCoast(cx0,isUK,sy0,cy0){
+    if(cx0<-150||cx0>W+150)return;
+    const shoreY=sy0,dir=isUK?-1:1;
+    const landEdge=isUK?Math.min(W,cx0+dir*60):Math.max(0,cx0-dir*60);
+    const worldX=isUK?(WW-250):250;
+    const sfd=game.sfDepth(worldX);
+    const sfY=H/2+(sfd-cy0)*MTX;
+    // Land mass rock
+    cx.fillStyle='#3a3530';if(isUK)cx.fillRect(landEdge,shoreY,W-landEdge+60,Math.max(0,sfY-shoreY));else cx.fillRect(0,shoreY,landEdge+60,Math.max(0,sfY-shoreY));
+    const rockGrad=cx.createLinearGradient(0,shoreY,0,shoreY+80);
+    rockGrad.addColorStop(0,'#5a5040');rockGrad.addColorStop(0.2,'#4a4035');rockGrad.addColorStop(0.6,'#3a3530');rockGrad.addColorStop(1,'#2a2520');
+    cx.fillStyle=rockGrad;if(isUK)cx.fillRect(landEdge,shoreY,W-landEdge+60,80);else cx.fillRect(0,shoreY,landEdge+60,80);
+    for(let i=0;i<15;i++){const rx=isUK?(landEdge+20+Math.random()*(W-landEdge)):(Math.random()*landEdge);const ry=shoreY+10+Math.random()*60;R.r(rx,ry,4+Math.random()*8,2+Math.random()*3,'rgba(90,80,60,0.3)')}
+    // Beach
+    cx.fillStyle='#c4b890';if(isUK)cx.fillRect(landEdge,shoreY-5,W-landEdge+60,12);else cx.fillRect(0,shoreY-5,landEdge+60,12);
+    for(let i=0;i<20;i++){const bx=isUK?(landEdge+20+Math.random()*(W-landEdge)):(Math.random()*landEdge);const by=shoreY-3+Math.random()*8;R.r(bx,by,1.5,1,'rgba(230,220,200,0.4)')}
+    // Grass
+    const grassGrad=cx.createLinearGradient(0,shoreY-60,0,shoreY-5);grassGrad.addColorStop(0,'#4a6a3a');grassGrad.addColorStop(1,'#3a5a2a');
+    cx.fillStyle=grassGrad;if(isUK)cx.fillRect(landEdge,shoreY-55,W-landEdge+60,50);else cx.fillRect(0,shoreY-55,landEdge+60,50);
+    const cityBaseX=isUK?cx0+40:cx0-40;
+    const buildings=[{w:22,h:55,c:'#556878'},{w:16,h:75,c:'#6a7a8a'},{w:28,h:48,c:'#4a5868'},{w:14,h:90,c:'#5a6878'},{w:20,h:65,c:'#4d5d6d'},{w:18,h:52,c:'#586878'},{w:24,h:70,c:'#526272'},{w:12,h:60,c:'#607080'},{w:16,h:85,c:'#4e5e6e'},{w:20,h:45,c:'#5c6c7c'},{w:26,h:58,c:'#4a5a6a'},{w:15,h:72,c:'#556575'}];
+    for(let i=0;i<buildings.length;i++){const b=buildings[i];const bx=cityBaseX+(isUK?i*22:-(i*22+20));if(bx<-30||bx>W+30)continue;
+      const bGrad=cx.createLinearGradient(bx,shoreY-b.h,bx,shoreY-35);bGrad.addColorStop(0,'#8898a8');bGrad.addColorStop(0.3,b.c);bGrad.addColorStop(1,'#3a4858');
+      cx.fillStyle=bGrad;cx.fillRect(bx,shoreY-b.h,b.w,b.h-25);
+      for(let wy=shoreY-b.h+10;wy<shoreY-40;wy+=12)for(let wx=bx+3;wx<bx+b.w-4;wx+=7){if(Math.random()<0.7){cx.fillStyle=`rgba(255,240,200,${0.3+Math.random()*0.5})`;cx.fillRect(wx,wy,4,5)}}
+      cx.fillStyle='#3a4858';cx.fillRect(bx-1,shoreY-b.h,b.w+2,4);}
+    const flagX=isUK?cityBaseX+120:cityBaseX-120,flagY=shoreY-65,flagPoleH=55;
+    cx.fillStyle='#ddd';cx.fillRect(flagX-1,flagY-flagPoleH,2,flagPoleH);cx.fillStyle='#888';cx.fillRect(flagX-2,flagY-flagPoleH-2,4,4);
+    if(isUK){cx.fillStyle='#224488';cx.fillRect(flagX,flagY-flagPoleH+5,22,14);cx.fillStyle='#cc3333';cx.fillRect(flagX+9,flagY-flagPoleH+5,2,14);cx.fillRect(flagX,flagY-flagPoleH+9,22,2);
+      cx.fillStyle='#ffffff';cx.fillRect(flagX+8,flagY-flagPoleH+5,4,14);cx.fillRect(flagX,flagY-flagPoleH+8,22,4);R.t('🇬🇧 英国 · 利物浦港',flagX+25,flagY-flagPoleH+15,10,'#ccd');}
+    else{cx.fillStyle='#224488';cx.fillRect(flagX,flagY-flagPoleH+5,8,8);
+      for(let r=0;r<6;r++){cx.fillStyle=r%2===0?'#cc3333':'#ffffff';cx.fillRect(flagX,flagY-flagPoleH+5+r*2.2,22,2.2)}
+      cx.fillStyle='#ffffff';for(let s=0;s<3;s++){cx.fillRect(flagX+2+s*3,flagY-flagPoleH+6,1,6)}R.t('🇺🇸 美国 · 纽约港',flagX-105,flagY-flagPoleH+15,10,'#ccd');}
+    const dockY=shoreY-5;
+    for(let d=0;d<3;d++){const dx=isUK?cityBaseX-40+d*40:cityBaseX+10+d*35;cx.fillStyle='#7a6a50';cx.fillRect(dx,dockY,32,6);cx.fillStyle='#8a7a60';cx.fillRect(dx+2,dockY-2,28,3);
+      for(let p=0;p<4;p++)cx.fillStyle='#5a4a3a',cx.fillRect(dx+3+p*8,dockY+6,3,8);cx.fillStyle='#667';cx.fillRect(dx+13,dockY-30,3,28);cx.fillStyle='#778';cx.fillRect(dx+10,dockY-33,9,4);cx.fillStyle='#556';cx.fillRect(dx+6,dockY-35,18,2);}
+    cx.fillStyle='rgba(220,50,20,0.05)';
+    if(isUK)cx.fillRect(cityBaseX-150,shoreY-140,350,200);else cx.fillRect(cityBaseX-200,shoreY-140,350,200);
+    R.t('⚠ 港口警戒区 · 高密度巡逻',isUK?cityBaseX:cityBaseX-50,shoreY-145,7,'#d88','center');
+  })(ukX,true,sy0,cy0);
+
+    // Seafloor
+    for(let i=0;i<this.seafloor.length-1;i++){const s1=this.seafloor[i],s2=this.seafloor[i+1];const sy1=H/2+(s1.y-cy0)*MTX,sy2=H/2+(s2.y-cy0)*MTX;const sx1=W/2+(s1.x-cx0)*MTX,sx2=W/2+(s2.x-cx0)*MTX;
+      if(sx1>-20&&sx1<W+20){cx.fillStyle='#0d1a0d';cx.beginPath();cx.moveTo(sx1,sy1);cx.lineTo(sx2,sy2);cx.lineTo(sx2,H+20);cx.lineTo(sx1,H+20);cx.fill();cx.strokeStyle='#1a351a';cx.lineWidth=2;cx.beginPath();cx.moveTo(sx1,sy1);cx.lineTo(sx2,sy2);cx.stroke()}}
+    // Wrecks
+    for(const w of this.wrecks){const wx=W/2+(w.x-cx0)*MTX,wy=H/2+(w.depth-cy0)*MTX;if(wx>-30&&wx<W+30&&wy>-20&&wy<H+20){cx.fillStyle=w.looted?'#2a2a2a':'#5a5040';cx.fillRect(wx-14,wy-2,28,5);cx.fillRect(wx-8,wy-6,16,4);R.r(wx-4,wy-9,8,5,'#6a5a4a');if(w.nearPlayer&&!w.looted&&Math.sin(this.gameTime*4)>0)R.t('可搜索',wx,wy-14,9,'#ffcc00','center')}}
+    // Enemies
+    for(const e of this.enemies){const ex=W/2+(e.x-cx0)*MTX,ey=H/2+(e.y-cy0)*MTX;if(ex<-60||ex>W+60||ey<-50||ey>H+50)continue;
+      const dist=Math.sqrt((e.x-this.player.x)**2+(e.y-this.player.depth)**2);
+      const inSight=e.sonarMarked||dist<140||(this.player.depth<DS&&e.y<DS);
+      if(inSight){cx.globalAlpha=e.sonarMarked?0.55:1;
+        switch(e.type){case'cruiser':R.cruiser(ex,ey);break;case'destroyer':R.destroyer(ex,ey);break;case'submarine':R.esub(ex,ey);break;case'merchant':R.merchant(ex,ey);break}
+        if(e.hp<e.maxHp){R.r(ex-18,ey-24,36,3,'#400');R.r(ex-18,ey-24,36*(e.hp/e.maxHp),3,'#e33')}
+        if(e.sonarMarked){cx.strokeStyle=`rgba(255,200,50,${0.45+Math.sin(this.gameTime*3)*0.25})`;cx.lineWidth=1;cx.strokeRect(ex-20,ey-22,40,44)}
+        if(dist<180)R.t('▼',ex,ey-26,8,e.sonarMarked?'#ffcc00':'#f44','center');
+        cx.globalAlpha=1;
+      }
+    }
+    // Torpedoes
+    for(const t of this.torpedoes){const tx=W/2+(t.x-cx0)*MTX,ty=H/2+(t.y-cy0)*MTX;if(tx>-20&&tx<W+20)R.torp(tx,ty,t.angle)}
+    // Depth charges
+    for(const dc of this.depthCharges){const dx=W/2+(dc.x-cx0)*MTX,dy=H/2+(dc.y-cy0)*MTX;if(dx>-20&&dx<W+20)R.dc(dx,dy)}
+    // Explosions
+    for(const ex of this.explosions){const exx=W/2+(ex.x-cx0)*MTX,exy=H/2+(ex.y-cy0)*MTX;R.exp(exx,exy,ex.radius,ex.alpha)}
+    // Sonar pings
+    for(const sp of this.sonarPings){const sx=W/2+(sp.x-cx0)*MTX,sy=H/2+(sp.y-cy0)*MTX;R.sonar(sx,sy,sp.radius,sp.alpha)}
+    // Player submarine
+    const psx=W/2+(this.player.x-cx0)*MTX,psy=H/2+(this.player.depth-cy0)*MTX;
+    // Spotlight
+    if(this.player.depth>DS&&this.player.spotlight){const sa=Math.min(0.12,(this.player.depth-DS)/180);const sg=cx.createRadialGradient(psx,psy,3,psx+(this.player.direction>0?30:-30),psy,90);sg.addColorStop(0,`rgba(200,220,150,${sa*2})`);sg.addColorStop(1,'rgba(200,220,150,0)');cx.fillStyle=sg;cx.beginPath();const ca=this.player.direction>0?-0.4:Math.PI-0.4,ca2=this.player.direction>0?0.4:Math.PI+0.4;cx.moveTo(psx,psy);cx.arc(psx,psy,90,ca,ca2);cx.fill()}
+    // Ambient light
+    const ar=Math.max(20,90-this.player.depth*0.5);const ag=cx.createRadialGradient(psx,psy,0,psx,psy,ar);ag.addColorStop(0,`rgba(180,210,200,${Math.max(0.04,0.25-this.player.depth/220)})`);ag.addColorStop(1,'rgba(0,0,0,0)');cx.fillStyle=ag;cx.fillRect(psx-ar,psy-ar,ar*2,ar*2);
+    // Draw sub
+    R.sub(psx,psy,this.player.direction);
+    // Pressure cracks
+    if(this.player.hullStress>70){const ca=(this.player.hullStress-70)/30;cx.globalAlpha=ca*0.45;cx.strokeStyle='#aaa';cx.lineWidth=1;const cr=[[40,25,90,45],[W-90,35,W-40,65],[25,H-70,75,H-50],[W-110,H-55,W-60,H-35],[W/2-50,12,W/2-30,30],[W/2+25,20,W/2+45,38]];for(const[x1,y1,x2,y2]of cr){cx.beginPath();cx.moveTo(x1,y1);cx.lineTo(x2,y2);cx.stroke();cx.beginPath();cx.moveTo(x1+(x2-x1)*0.35,y1+(y2-y1)*0.35);cx.lineTo(x1+(x2-x1)*0.35+12,y1+(y2-y1)*0.35-8);cx.stroke()}cx.globalAlpha=1}
+    // Vignette
+    const vg=cx.createRadialGradient(W/2,H/2,W*0.35,W/2,H/2,W*0.75);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,0.35)');cx.fillStyle=vg;cx.fillRect(0,0,W,H);
+    this.rHUD();
+  }
+
+  rHUD(){
+    // === LEFT: Depth gauge (300m) ===
+    const px=8,py=55;R.panel(px-2,py-5,38,310);
+    R.t('深度',px+19,py+8,8,'#8af','center');
+    for(let d=0;d<=300;d+=50){const dy=py+18+d*0.58;R.t(`${d}m`,px,dy+3,6.5,'#666');cx.strokeStyle=d===0?'#4af':d===150?'#6a8':d===250?'#f84':'#444';cx.lineWidth=1;cx.beginPath();cx.moveTo(px+29,dy);cx.lineTo(px+37,dy);cx.stroke()}
+    // Mercury column
+    const mercMax=174,mercH=Math.min(mercMax,this.player.depth)*0.58,mercY=py+18+mercH;
+    cx.fillStyle='#1a2a1a';cx.fillRect(px+8,py+18,7,mercMax);cx.fillStyle='#4a7a4a';cx.fillRect(px+8,mercY,7,mercMax-mercH);cx.fillStyle='#ffcc00';cx.fillRect(px+5,mercY-1,13,2);
+    R.t('浅层',px,py+18+40*0.58+3,6,'#4af');R.t('中层',px,py+18+120*0.58+3,6,'#6a8');R.t('深层',px,py+18+200*0.58+3,6,'#f84');
+
+    // === TOP: Resources ===
+    const by0=6,bx0=55;
+    const res=[{l:'O₂',v:this.player.oxygen,m:100,c:'#5cb8ff',bg:'#0d1a28'},{l:'电力',v:this.player.power,m:100,c:'#f0d040',bg:'#1a1508'},{l:'压力',v:this.player.hullStress,m:100,c:'#ff5555',bg:'#1a0808'},{l:'装甲',v:this.player.armorIntegrity,m:100,c:'#55cc55',bg:'#081a08'}];
+    for(let i=0;i<res.length;i++){const r=res[i],rx=bx0+i*170;R.t(r.l,rx,by0+9,10,r.c);cx.fillStyle=r.bg;cx.fillRect(rx+24,by0+1,132,11);cx.fillStyle=r.c;cx.fillRect(rx+24,by0+1,132*(r.v/r.m),11);cx.strokeStyle='#3a4a5a';cx.lineWidth=1;cx.strokeRect(rx+24,by0+1,132,11);R.t(`${Math.round(r.v)}%`,rx+24+66,by0+11,9,'#fff','center')}
+    // Breach/battery indicators
+    if(this.breaching){R.t('换气中...',bx0,by0+18,7,'#4af');cx.fillStyle='#123';cx.fillRect(bx0+48,by0+16,100,5);cx.fillStyle='#4af';cx.fillRect(bx0+48,by0+16,100*this.breachProgress,5)}
+    if(this.batterySwapping){R.t('换电中...',bx0+170,by0+18,7,'#ff0');cx.fillStyle='#321';cx.fillRect(bx0+218,by0+16,100,5);cx.fillStyle='#ff0';cx.fillRect(bx0+218,by0+16,100*this.batterySwapProgress,5)}
+
+    // === RIGHT: Weapons ===
+    const wx0=W-138,wy0=55;R.panel(wx0-3,wy0-3,145,100);
+    R.t('武器库存',wx0+70,wy0+10,10,'#d4a843','center');
+    const weps=[{l:'普通鱼雷',v:this.player.normalTorps,c:'#ccc'},{l:'巡航鱼雷',v:this.player.cruiseTorps,c:'#ffa'},{l:'导弹',v:this.player.missiles,c:'#faa'}];
+    for(let i=0;i<weps.length;i++){R.t(`${weps[i].l}: ${weps[i].v}`,wx0,wy0+26+i*20,9,weps[i].c)}
+    R.t(`电池: ${this.player.batteries}`,wx0,wy0+90,9,'#ff0');
+
+    // === BOTTOM: Crew buttons ===
+    const by1=H-42;
+    cx.fillStyle='rgba(4,6,14,0.9)';cx.fillRect(0,by1-3,W,46);
+    const crews=[{k:'hawk',n:'猎鹰小组',d:'修复装甲',hk:'1'},{k:'shark',n:'大白鲨小组',d:'搜索沉船',hk:'2'},{k:'whale',n:'巨鲸小组',d:'更换电池',hk:'3'},{k:'arctic',n:'北冰洋小组',d:'声呐/探照灯',hk:'4'},{k:'thunder',n:'雷霆小组',d:'发射武器',hk:'5'}];
+    this._crewBtnRects=[];
+    for(let i=0;i<crews.length;i++){const cx0=10+i*190;const hov=this._crewBtnHover===i||(M.y>=by1&&M.y<=by1+40&&M.x>=cx0-2&&M.x<=cx0+183);
+      if(hov)this._crewBtnHover=i;
+      cx.fillStyle=hov?'#1e3048':'#0c121c';cx.fillRect(cx0-2,by1,185,38);cx.strokeStyle=hov?'#5599cc':'#2a3a4a';cx.lineWidth=1;cx.strokeRect(cx0-2,by1,185,38);
+      cx.fillStyle=hov?'#7ab8e0':'#556677';R.t(`[${crews[i].hk}]`,cx0+4,by1+17,10,cx.fillStyle);R.t(crews[i].n,cx0+32,by1+17,12,hov?'#ffffff':'#ccd');
+      R.t(crews[i].d,cx0+32,by1+32,8.5,'#8899aa');
+      this._crewBtnRects.push({x:cx0-2,y:by1,w:185,h:38,team:i});
+    }
+
+    // === Messages ===
+    const my0=H-100;
+    cx.fillStyle='rgba(0,0,0,0.55)';cx.fillRect(2,my0,420,48);
+    const vis=this.messageLog.slice(-5);
+    for(let i=0;i<vis.length;i++){const a=Math.min(1,vis[i].timer/60);cx.globalAlpha=a;R.t(vis[i].msg,5,my0+8+i*9,8.5,vis[i].msg.includes('!!!')?'#ff6666':vis[i].msg.includes('击沉')?'#ffdd44':'#99aabb');}cx.globalAlpha=1;
+
+    // === Alerts ===
+    for(const a of this.alertMessages){const al=Math.min(1,a.timer/30),ax=W/2,ay=H/2-70;cx.globalAlpha=al;cx.fillStyle=a.urgent?'rgba(180,20,20,0.9)':'rgba(160,120,10,0.9)';const aw=a.msg.length*10+24;cx.fillRect(ax-aw/2,ay-13,aw,28);cx.strokeStyle=a.urgent?'#f66':'#fc0';cx.strokeRect(ax-aw/2,ay-13,aw,28);R.t(a.msg,ax,ay+5,11,'#fff','center')}cx.globalAlpha=1;
+
+    // === Score & Direction ===
+    R.t(`得分: ${this.score}`,W-128,26,12,'#d4a843','right');
+    if(this._killStreak>=3)R.t(`🔥 ${this._killStreak}连杀!`,W-128,42,11,'#ff8844','right');
+    R.t(this.player.direction>0?'► 右航':'◄ 左航',W-128,this._killStreak>=3?58:44,10,'#4af','right');
+    if(this.player.turning)R.t(`转向中...${Math.round(this.player.turnProgress*100)}%`,W-128,this._killStreak>=3?72:58,9,'#ff0','right');
+    // Surface danger warning
+    if(this.player.depth<15)R.t('⚠ 水面暴露！',W-128,this._killStreak>=3?86:72,10,'#f44','right');
+    // Difficulty level
+    const dl=getDiffLevel(this.gameTime);if(dl>0)R.t(`难度 Lv.${dl}`,W-128,H-60,9,'#f96','right');
+
+    // === Controls hint ===
+    cx.globalAlpha=0.3;R.t('W/S:深度 A/D:转向/前进 SPACE:声呐 点击:攻击/小组 1-5:小组 ESC:暂停',W/2,H-55,7.5,'#8899aa','center');cx.globalAlpha=1;
+  }
+
+  rPause(){cx.fillStyle='rgba(0,0,0,0.65)';cx.fillRect(0,0,W,H);R.t('游戏暂停',W/2,H/2-35,30,'#d4a843','center');R.t('按 ESC 或 P 键继续',W/2,H/2+12,15,'#aaa','center');R.t('按 M 键返回主菜单',W/2,H/2+38,11,'#888','center')}
+
+  rCrew(){
+    // Dark immersive overlay with vignette
+    cx.fillStyle='rgba(2,4,10,0.88)';cx.fillRect(0,0,W,H);
+    const vg=cx.createRadialGradient(W/2,H/2,W*0.4,W/2,H/2,W*0.8);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,0.4)');cx.fillStyle=vg;cx.fillRect(0,0,W,H);
+
+    const pcx=W/2,pcy=H/2,pw=640,ph=420;
+    // Main panel with steel texture look
+    cx.fillStyle='rgba(8,12,22,0.97)';cx.fillRect(pcx-pw/2,pcy-ph/2,pw,ph);
+    cx.strokeStyle='#4a6a8a';cx.lineWidth=2;cx.strokeRect(pcx-pw/2,pcy-ph/2,pw,ph);
+    cx.strokeStyle='#2a4a5a';cx.lineWidth=1;cx.strokeRect(pcx-pw/2+3,pcy-ph/2+3,pw-6,ph-6);
+    // Inner accent lines
+    cx.strokeStyle='rgba(100,160,200,0.3)';cx.lineWidth=0.5;cx.strokeRect(pcx-pw/2+6,pcy-ph/2+6,pw-12,ph-12);
+
+    const teams=[
+      {n:'猎鹰小组',ld:'托比亚斯·霍夫曼上尉',rl:'工程修复',ds:'对潜艇装甲进行修复。消耗电力15%，修复时潜艇保持静止。',icon:'🔧',color:'#4a8',acts:[{l:'修复装甲 (+20%)',c:'电力 -15',k:'1'}]},
+      {n:'大白鲨小组',ld:'亚瑟·克劳斯少校',rl:'潜水搜索',ds:'靠近被击沉船只时派出蛙人搜索资源，可能获得鱼雷或电力补给。',icon:'🏊',color:'#48a',acts:[{l:'搜索附近沉船',c:'需靠近残骸',k:'1'}]},
+      {n:'巨鲸小组',ld:'奥托·冯·霍恩少校',rl:'潜艇操作',ds:'管理潜艇核心系统：查看氧气、电力、压力、装甲状态，更换备用电池。',icon:'⚙️',color:'#aa0',acts:[{l:'更换备用电池',c:'需备用电池，耗时15秒',k:'1'},{l:'查看详细状态',c:'显示所有系统数据',k:'2'}]},
+      {n:'北冰洋小组',ld:'康拉德·海因里希上尉',rl:'信号观测',ds:'操作声呐系统与探照灯。被动监听敌方螺旋桨噪音，提供战术预警。',icon:'📡',color:'#4af',acts:[{l:'切换探照灯',c:this.player&&this.player.spotlight?'当前: 开启':'当前: 关闭',k:'1'},{l:'主动声呐扫描',c:'电力 -8',k:'2'}]},
+      {n:'雷霆小组',ld:'卢卡斯·穆勒上校',rl:'武器攻击',ds:'管理鱼雷与导弹发射。点击目标后自动计算弹道和命中概率。',icon:'🎯',color:'#f44',acts:[{l:'普通鱼雷',c:`库存:${this.player?this.player.normalTorps:0} | 电力-5`,k:'1'},{l:'巡航鱼雷',c:`库存:${this.player?this.player.cruiseTorps:0} | 电力-8`,k:'2'},{l:'导弹(水面)',c:`库存:${this.player?this.player.missiles:0} | 电力-10`,k:'3'}]}
+    ];
+
+    const tm=teams[this.crewPanel.team];
+
+    // === LEFT: Character portrait area ===
+    const lx=pcx-pw/2+15,ly=pcy-ph/2+15,lw=160,lh=ph-30;
+    cx.fillStyle='rgba(10,16,30,0.8)';cx.fillRect(lx,ly,lw,lh);cx.strokeStyle='#3a5068';cx.strokeRect(lx,ly,lw,lh);
+
+    // Portrait circle with icon
+    const ppx=lx+lw/2,ppy=ly+55;
+    cx.fillStyle='rgba(20,30,50,0.9)';cx.beginPath();cx.arc(ppx,ppy,40,0,Math.PI*2);cx.fill();
+    cx.strokeStyle=tm.color;cx.lineWidth=2.5;cx.beginPath();cx.arc(ppx,ppy,40,0,Math.PI*2);cx.stroke();
+    cx.strokeStyle='rgba(255,255,255,0.2)';cx.lineWidth=1;cx.beginPath();cx.arc(ppx,ppy,36,0,Math.PI*2);cx.stroke();
+    R.t(tm.icon,ppx,ppy+8,32,'#fff','center');
+
+    // Leader name
+    R.t(tm.ld,pcx-pw/2+lw/2+15,ly+115,11,'#ddd','center');
+    R.t(`「${tm.n}」组长`,pcx-pw/2+lw/2+15,ly+132,9,tm.color,'center');
+    R.t(tm.rl,pcx-pw/2+lw/2+15,ly+148,8.5,'#888','center');
+
+    // === RIGHT: Content area ===
+    const rx=lx+lw+15,ry=ly,rw=pw-lw-45,rh=lh;
+    // Title bar
+    cx.fillStyle='rgba(20,30,50,0.9)';cx.fillRect(rx,ry,rw,32);
+    cx.strokeStyle=tm.color;cx.lineWidth=1;cx.strokeRect(rx,ry,rw,32);
+    R.t(`${tm.n} — ${tm.rl}`,rx+rw/2,ry+22,14,'#fff','center');
+
+    // Description
+    const dsy=ry+46;
+    cx.fillStyle='rgba(15,22,35,0.7)';cx.fillRect(rx,dsy-5,rw,36);
+    R.t(tm.ds,rx+8,dsy+6,9.5,'#aabbcc','left');R.t(tm.ds,rx+8,dsy+20,9.5,'#8899aa','left');
+
+    // Action buttons
+    const aby=dsy+48;
+    for(let i=0;i<tm.acts.length;i++){
+      const a=tm.acts[i],ay=aby+i*58;
+      const hov=M.y>=ay&&M.y<=ay+50&&M.x>=rx&&M.x<=rx+rw;
+      // Button bg
+      const bg=cx.createLinearGradient(rx,ay,rx,ay+50);bg.addColorStop(0,hov?'#1e3858':'#121a28');bg.addColorStop(1,hov?'#1a3050':'#0e1522');
+      cx.fillStyle=bg;cx.fillRect(rx,ay,rw,50);
+      cx.strokeStyle=hov?tm.color:'#2a3a4a';cx.lineWidth=hov?2:1;cx.strokeRect(rx,ay,rw,50);
+      // Key badge
+      cx.fillStyle=tm.color;cx.beginPath();cx.arc(rx+20,ay+25,13,0,Math.PI*2);cx.fill();
+      R.t(a.k,rx+20,ay+29,13,'#fff','center');
+      // Label
+      R.t(a.l,rx+42,ay+20,13,hov?'#fff':'#dde','left');
+      // Cost
+      R.t(a.c,rx+42,ay+38,9,hov?'#99bbcc':'#667788','left');
+    }
+
+    // === TOP: Team tabs ===
+    const taby=pcy-ph/2-28;
+    for(let i=0;i<teams.length;i++){
+      const tx=pcx-pw/2+8+i*126;
+      const sel=i===this.crewPanel.team;
+      cx.fillStyle=sel?'rgba(20,35,55,0.95)':'rgba(6,10,18,0.9)';
+      cx.fillRect(tx,taby,122,32);
+      cx.strokeStyle=sel?teams[i].color:'#2a3a4a';cx.lineWidth=sel?2:1;cx.strokeRect(tx,taby,122,32);
+      R.t(teams[i].icon,tx+12,taby+21,13,'#fff','center');
+      R.t(teams[i].n,tx+32,taby+21,9.5,sel?'#fff':'#889','left');
+    }
+
+    // === STATUS BARS (right side of panel) ===
+    if(this.player){
+      const sx=rx+rw-115,sy=ry+38;
+      const stats=[{l:'O₂',v:this.player.oxygen,c:'#5cb8ff'},{l:'电力',v:this.player.power,c:'#f0d040'},{l:'压力',v:this.player.hullStress,c:'#ff5555'},{l:'装甲',v:this.player.armorIntegrity,c:'#55cc55'}];
+      for(let i=0;i<stats.length;i++){
+        const st=stats[i],sy2=sy+i*18;
+        R.t(st.l,sx,sy2+11,8,st.c,'right');cx.fillStyle='rgba(0,0,0,0.5)';cx.fillRect(sx+16,sy2+4,72,7);
+        cx.fillStyle=st.c;cx.fillRect(sx+16,sy2+4,72*(st.v/100),7);cx.strokeStyle='#444';cx.strokeRect(sx+16,sy2+4,72,7);
+      }
+    }
+
+    // Bottom hint
+    R.t('ESC 关闭 | 点击标签切换小组 | 点击按钮执行操作',pcx,pcy+ph/2-8,9,'#556','center');
+  }
+
+  rEvent(){
+    if(!this.activeEvent)return;cx.fillStyle='rgba(0,0,0,0.82)';cx.fillRect(0,0,W,H);
+    const ecx=W/2,ecy=H/2,ew=580,eh=310+this.activeEvent.choices.length*58;R.panel(ecx-ew/2,ecy-eh/2,ew,eh);
+    R.t(this.activeEvent.title,ecx,ecy-eh/2+32,18,'#d4a843','center');
+    const desc=this.activeEvent.description;let line='',yOff=58;
+    for(let i=0;i<desc.length;i++){line+=desc[i];if(line.length>42||i===desc.length-1){R.t(line,ecx-ew/2+25,ecy-eh/2+yOff,10.5,'#ccc');line='';yOff+=19}}
+    for(let i=0;i<this.activeEvent.choices.length;i++){const c=this.activeEvent.choices[i],cy=ecy-eh/2+yOff+18+i*55;
+      const hov=M.y>=cy&&M.y<=cy+46&&M.x>=ecx-ew/2+18&&M.x<=ecx+ew/2-18;
+      cx.fillStyle=hov?'#223344':'#111820';cx.fillRect(ecx-ew/2+18,cy,ew-36,46);cx.strokeStyle=hov?'#d4a843':'#444';cx.strokeRect(ecx-ew/2+18,cy,ew-36,46);
+      R.t(c.label,ecx-ew/2+32,cy+28,13,hov?'#ff0':'#ddd')}
+    R.t('点击选项进行选择...',ecx,ecy+eh/2-8,9,'#666','center');
+  }
+
+  rOver(){
+    // Background image
+    const goImg=document.getElementById('goImg');
+    if(goImg&&goImg.complete&&goImg.naturalWidth>0){cx.drawImage(goImg,0,0,W,H)}
+    else{const bg=cx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#020810');bg.addColorStop(0.5,'#040e1a');bg.addColorStop(1,'#010408');cx.fillStyle=bg;cx.fillRect(0,0,W,H)}
+    // Dark overlay
+    cx.fillStyle='rgba(0,0,0,0.55)';cx.fillRect(0,0,W,H);
+    // Sinking particles
+    for(let i=0;i<30;i++){const px=((i*137+this.gameTime*8)%(W+40))-20,py=((i*73+this.gameTime*15)%(H+40))-20;R.bub(px,py,0.5+Math.random()*1.5,0.12)}
+    // Light rays fading
+    for(let rx=-80;rx<W+80;rx+=50){cx.fillStyle='rgba(30,60,90,0.04)';cx.beginPath();cx.moveTo(rx,0);cx.lineTo(rx+20,H*0.5);cx.lineTo(rx-10,H*0.5);cx.fill()}
+
+    // === Panel ===
+    const pcx=W/2,pcy=H/2,pw=500,ph=320;
+    cx.fillStyle='rgba(4,8,16,0.95)';cx.fillRect(pcx-pw/2,pcy-ph/2,pw,ph);
+    cx.strokeStyle='#3a5068';cx.lineWidth=2;cx.strokeRect(pcx-pw/2,pcy-ph/2,pw,ph);
+    cx.strokeStyle='#1a3040';cx.lineWidth=1;cx.strokeRect(pcx-pw/2+4,pcy-ph/2+4,pw-8,ph-8);
+
+    // Iron Cross (faded)
+    cx.globalAlpha=0.15;
+    const cx0=pcx,cy0=pcy-100;R.r(cx0-22,cy0-7,44,14,'#c41e3a');R.r(cx0-7,cy0-22,14,44,'#c41e3a');
+    cx.globalAlpha=1;
+
+    // Title
+    R.t('铁十字号 沉没',pcx,pcy-ph/2+50,30,'#c41e3a','center');
+    R.t('IRON CROSS — LOST AT SEA',pcx,pcy-ph/2+72,11,'#667788','center');
+
+    // Reason
+    R.t(this.gameOverReason,pcx,pcy-ph/2+105,12,'#aabbcc','center');
+
+    // Stats
+    cx.fillStyle='rgba(10,18,30,0.7)';cx.fillRect(pcx-120,pcy-ph/2+120,240,60);
+    cx.strokeStyle='#2a3a4a';cx.strokeRect(pcx-120,pcy-ph/2+120,240,60);
+    R.t('最终战绩',pcx,pcy-ph/2+138,10,'#889','center');
+    R.t(`${this.score} 分`,pcx,pcy-ph/2+160,24,'#d4a843','center');
+    const hs=this.highScores.length>0?this.highScores[0].score:0;
+    R.t(`历史最高: ${hs} 分`,pcx,pcy-ph/2+175,10,hs>0?'#888':'#555','center');
+
+    // Return button
+    const bx=pcx-110,by=pcy-ph/2+200,bw=220,bh=44;
+    const hov=M.y>=by&&M.y<=by+bh&&M.x>=bx&&M.x<=bx+bw;
+    const bgG=cx.createLinearGradient(bx,by,bx,by+bh);bgG.addColorStop(0,hov?'#2a4058':'#1a2838');bgG.addColorStop(1,hov?'#1e3045':'#101e2a');
+    cx.fillStyle=bgG;cx.fillRect(bx,by,bw,bh);
+    cx.strokeStyle=hov?'#6a8899':'#3a5060';cx.lineWidth=hov?2:1;cx.strokeRect(bx,by,bw,bh);
+    const canReturn=this.gameOverTimer<0;
+    const flicker=canReturn&&Math.sin(this.gameTime*3)>0;
+    R.t(flicker||hov?'▶  返回主菜单  ◀':'返回主菜单',pcx,by+28,hov?16:14,hov?'#ffdd88':'#8899aa','center');
+
+    // Hint
+    if(canReturn)R.t('点击上方按钮或按 ENTER 返回',pcx,by+bh+20,10,'#778','center');
+    else{R.t(`请等待... ${Math.ceil(Math.max(0,this.gameOverTimer))} 秒`,pcx,by+bh+20,10,'#556','center')}
+  }
+
+  rScores(){
+    cx.fillStyle='#0a0a14';cx.fillRect(0,0,W,H);
+    R.t('历史得分',W/2,38,26,'#d4a843','center');R.t('排名  得分  日期',W/2,72,11,'#888','center');
+    if(this.highScores.length===0)R.t('暂无记录',W/2,120,11,'#666','center');
+    else for(let i=0;i<Math.min(10,this.highScores.length);i++){const s=this.highScores[i];R.t(`${i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.'}  ${s.score}  ${s.date}`,W/2,102+i*24,12,i<3?'#ff0':'#aaa','center')}
+    if(Math.sin(this.gameTime*3)>0)R.t('点击返回主菜单',W/2,H-35,12,'#888','center');
+  }
+
+  rHelp(){
+    cx.fillStyle='#0a0a14';cx.fillRect(0,0,W,H);R.t('玩法介绍',W/2,28,26,'#d4a843','center');
+    const inst=['=== 背景 ===','1943年，指挥铁十字号潜艇在北大西洋执行任务','','=== 操作 ===','W - 上浮 | S - 下潜 | A/D - 转向/前进','SPACE - 主动声呐 | 点击敌舰 - 发射鱼雷','1-5 / 点击底部按钮 - 管理各小组','点击自己的潜艇 - 打开巨鲸小组状态','','=== 资源 ===','O₂: 持续消耗，耗尽即死。需上浮换气','电力: 驱动声呐/鱼雷/灯光。耗尽需更换电池','船体压力: 随深度增加，过高会解体','装甲完整度: 被攻击下降，需猎鹰小组修复','','=== 深度区域 ===','浅层(0-50m): 视野好，但驱逐舰密集','中层(50-100m): 需要声呐辅助','深层(100-150m): 几乎全靠声呐，压力快速上升','','=== 武器 ===','普通鱼雷: 距离越远命中越低','巡航鱼雷: 100%命中 | 导弹: 仅水面，100%命中','','=== 提示 ===','不定时上浮换气，在安全时更换电池','被深水炸弹攻击后尽快修复装甲','利用热跃层躲避敌方声呐搜索'];
+    for(let i=0;i<inst.length;i++)R.t(inst[i],90,68+i*16,8.5,inst[i].startsWith('===')?'#d4a843':'#aaa');
+    if(Math.sin(this.gameTime*3)>0)R.t('点击返回主菜单',W/2,H-22,12,'#888','center');
+  }
+}
+
+// ===== SUBMARINE CLASS =====
+class Sub{
+  constructor(){
+    this.x=0;this.depth=15;this.vy=0;this.vx=0;this.direction=1;this.turnProgress=0;this.turning=false;
+    this.oxygen=100;this.power=100;this.hullStress=0;this.armorIntegrity=100;this.batteries=3;this.morale=80;
+    this.normalTorps=20;this.cruiseTorps=10;this.missiles=5;this.spotlight=true;
+    this.oxygenRate=0.055;this.powerDrainRate=0.035;this.maxSpeed=60;this.verticalSpeed=25;
+  }
+  update(dt,game){
+    // Turning
+    if(K['a']&&!this.turning&&this.direction===1){this.turning=true;this.turnProgress=0}
+    if(K['d']&&!this.turning&&this.direction===-1){this.turning=true;this.turnProgress=0}
+    if(this.turning){this.turnProgress+=dt/2;if(this.turnProgress>=1){this.turning=false;this.direction*=-1;game.msg(`转向完成！航向: ${this.direction>0?'右':'左'}`)}}
+    // Horizontal
+    const mvK=this.direction>0?'d':'a',rvK=this.direction>0?'a':'d';
+    if(K[mvK]&&!this.turning)this.vx+=(this.maxSpeed-this.vx)*0.05;
+    else if(K[rvK]&&!this.turning){this.vx-=this.vx*0.2;this.vx-=5}
+    else this.vx*=0.98;
+    this.vx=Math.max(-20,Math.min(this.maxSpeed,this.vx));this.x+=this.vx*this.direction*dt;this.x=Math.max(10,Math.min(WW-10,this.x));
+    // Vertical
+    if(K['w']&&!this.turning&&!game.breaching)this.vy-=this.verticalSpeed*0.3*dt*60;
+    if(K['s']&&!this.turning&&!game.breaching)this.vy+=this.verticalSpeed*0.3*dt*60;
+    this.vy*=0.95;this.depth+=this.vy*dt;this.depth=Math.max(0,Math.min(285,this.depth));
+    if(this.depth<=0){this.depth=0;this.vy=0}const sf=game.sfDepth(this.x);if(this.depth>=sf-3){this.depth=sf-3;this.vy=0}
+    // Resources
+    this.oxygen-=this.oxygenRate*dt*(1+this.depth*0.005);this.oxygen=Math.max(0,this.oxygen);
+    this.power-=this.powerDrainRate*dt*(1+Math.abs(this.vx)/this.maxSpeed);this.power-=this.spotlight&&this.depth>DS?0.02*dt:0;this.power=Math.max(0,this.power);
+    if(this.depth>0){const ts=this.depth/WH*100;this.hullStress+=(ts-this.hullStress)*0.01*dt;if(this.depth<30)this.hullStress=Math.max(0,this.hullStress-0.5*dt)}this.hullStress=Math.max(0,Math.min(100,this.hullStress));
+    if(this.armorIntegrity<100&&!game.breaching&&!game.batterySwapping)this.armorIntegrity+=0.015*dt;
+    if(this.depth<=0.5&&this.oxygen<90&&!game.breaching){game.breaching=true;game.breachProgress=0;game.msg('正在水面换气...注意巡逻机！')}
+    if(this.depth<20&&Math.random()<0.0008*dt&&Math.random()<0.3){game.spawnEnemy('destroyer');game.alert('!!! 巡逻机发现你了！驱逐舰正在接近！',true)}
+    // Passive sonar
+    for(const e of game.enemies){if(e.sonarMarked)continue;const dist=Math.sqrt((e.x-this.x)**2+(e.y-this.depth)**2);const dr=e.type==='destroyer'?130:e.type==='submarine'?90:110;if(dist<dr&&Math.random()<0.012*dt){const tn=e.type==='destroyer'?'水面战舰':e.type==='submarine'?'水下目标':'商船';game.alert(`被动声呐：检测到${tn}螺旋桨，约${Math.round(dist)}米`,e.type==='destroyer')}}
+  }
+  repairArmor(amt=20){if(this.power<15)return'电力不足！';this.power-=15;this.armorIntegrity=Math.min(100,this.armorIntegrity+amt);return`装甲修复完成！+${amt}%`}
+  swapBattery(){if(this.batteries<=0)return'没有备用电池！';this.batteries--;this.power=100;return'电池更换完成！'}
+  toggleSpotlight(){this.spotlight=!this.spotlight;return this.spotlight?'探照灯已开启':'探照灯已关闭'}
+  activeSonar(game){if(this.power<8)return'电力不足！';this.power-=8;game.sonarPings.push({x:this.x,y:this.depth,radius:5,speed:150,alpha:1});sfxSonar();game.msg('主动声呐脉冲已发出！');return'声呐扫描中...'}
+}
+
+// ===== ENEMY CLASS =====
+class Enemy{
+  constructor(type,x,y,game){
+    this.type=type;this.x=x;this.y=y;this.vx=0;this.vy=0;this.sonarMarked=false;this.markedTimer=0;this.aiTimer=0;this.aiState='patrol';this.dcCD=0;this.torpCD=0;this.ambush=false;
+    const dm=game?getDiffMultiplier(game.gameTime):1;
+    switch(type){case'cruiser':this.hp=Math.floor(150*dm);this.maxHp=this.hp;this.speed=(16+Math.random()*8)*Math.min(1.4,1+(dm-1)*0.4);this.y=0;this.escortTarget=null;break;case'destroyer':this.hp=Math.floor(90*dm);this.maxHp=this.hp;this.speed=(18+Math.random()*10)*Math.min(1.5,1+(dm-1)*0.5);this.y=0;break;case'submarine':this.hp=Math.floor(55*dm);this.maxHp=this.hp;this.speed=(14+Math.random()*16)*Math.min(1.5,1+(dm-1)*0.5);break;case'merchant':this.hp=Math.floor(40*dm);this.maxHp=this.hp;this.speed=(8+Math.random()*10)*Math.min(1.3,1+(dm-1)*0.3);this.y=0;this.escortedBy=null;break}
+  }
+  update(dt,game){
+    if(this.markedTimer>0){this.markedTimer-=dt;if(this.markedTimer<=0)this.sonarMarked=false}
+    this.dcCD-=dt;this.torpCD-=dt;
+    const dx=game.player.x-this.x,dy=game.player.depth-this.y,dist=Math.sqrt(dx*dx+dy*dy);
+    const hDist=Math.abs(dx); // horizontal distance only
+    this.aiTimer-=dt;if(this.aiTimer<=0){this.aiTimer=1.5+Math.random()*3;this.ai(dist,dx,dy,hDist,game)}
+    this.x+=this.vx*dt;this.y+=this.vy*dt;this.y=Math.max(0,Math.min(game.sfDepth(this.x)-8,this.y));
+    if(this.x<0)this.x=WW;if(this.x>WW)this.x=0;
+    // Warship attacks — only if detected or player exposed
+    const exposed=game.player.depth<30; // visible from surface
+    const detected=this.sonarMarked||exposed||dist<70; // need detection to attack
+    // Escort: cruiser follows its merchant
+    if(this.type==='cruiser'&&this.escortTarget&&this.escortTarget.hp>0){this.vx=this.escortTarget.vx;this.x+=this.vx*dt;this.y=0;return}
+    if((this.type==='destroyer'||this.type==='cruiser')){
+      if(detected&&dist<150&&game.player.depth>3&&game.player.depth<100&&this.dcCD<=0){this.dropDC(game);this.dcCD=this.type==='cruiser'?4+Math.random()*5:5+Math.random()*7}
+      if(detected&&hDist<250&&this.torpCD<=0&&game.player.depth>5){this.fireTorp(game);this.torpCD=this.type==='cruiser'?6+Math.random()*10:10+Math.random()*14;game.alert(`!!! ${this.type==='cruiser'?'巡洋舰':'驱逐舰'}发射鱼雷！`,true)}
+      if(detected&&game.player.depth>100&&hDist<180){this.vx=Math.sign(dx)*this.speed*0.7;this.aiState='circling'}
+    }
+    if(this.type==='submarine'&&(this.sonarMarked||dist<90)&&dist<200&&this.torpCD<=0){this.fireTorp(game);this.torpCD=5+Math.random()*9}
+  }
+  ai(dist,dx,dy,hDist,game){
+    const exposed=game.player.depth<30;
+    const detected=this.sonarMarked||exposed||dist<70;
+    switch(this.type){case'cruiser':case'destroyer':
+      if(detected&&game.player.depth>100&&hDist<180){this.vx=Math.sign(dx)*this.speed*0.7;this.aiState='circling'}
+      else if(detected&&dist<350){this.vx=Math.sign(dx)*this.speed*0.95;this.aiState='chase'}
+      else{this.vx=(Math.random()-0.5)*this.speed*0.5;this.aiState='patrol'}break;
+      case'submarine':
+        if(dist<70&&this.sonarMarked){this.vx=-Math.sign(dx)*this.speed*0.5;this.vy=-Math.sign(dy)*8;this.aiState='flee'}
+        else if(dist<280&&(this.sonarMarked||dist<110)){this.vx=Math.sign(dx)*this.speed*0.55;this.vy=Math.sign(dy)*5;this.aiState='hunt'}
+        else{this.vx=(Math.random()-0.5)*this.speed*0.4;this.vy=(Math.random()-0.5)*8;this.aiState='patrol'}
+        break;
+      case'merchant':
+        if(this.x<WW/2)this.vx=this.speed*0.6;
+        else this.vx=-this.speed*0.6;
+        this.aiState='sail';break}
+  }
+  dropDC(game){const ty=Math.min(game.player.depth,90)+(Math.random()-0.5)*12;const dmg=this.type==='cruiser'?35+Math.random()*35:25+Math.random()*30;game.depthCharges.push({x:this.x+(Math.random()-0.5)*6,y:2,speed:45+Math.random()*18,life:22,damage:dmg,explodeRadius:25+Math.random()*20,targetY:ty})}
+  fireTorp(game){const ang=Math.atan2(game.player.depth-this.y,game.player.x-this.x);const dmg=this.type==='cruiser'?50:this.type==='destroyer'?35:45;const spd=this.type==='cruiser'?170:this.type==='destroyer'?150:140;game.torpedoes.push({x:this.x,y:this.y,angle:ang,speed:spd,life:14,damage:dmg,type:'enemy',hitChance:this.type==='cruiser'?0.5:this.type==='destroyer'?0.38:0.48});if(this.type==='submarine')game.alert('!!! 敌方潜艇发射鱼雷！',true)}
+}
+
+// ===== MAIN =====
+const game=new Game();let lastTime=performance.now();
+
+function gameLoop(ts){
+  let dt=(ts-lastTime)/1000;lastTime=ts;if(dt>0.1)dt=0.1;if(dt<=0)dt=0.016;
+  if(game.state===ST.LOADING){game.loadTimer-=dt;if(game.loadTimer<=0)game.state=ST.INTRO}
+  if(game.state!==ST.MENU&&game.state!==ST.LOADING&&game.state!==ST.INTRO)game.gameTime+=dt;
+  game._dayT=(game._dayT||0)+dt;if(game._dayT>=300)game._dayT-=300;
+  handleInput(dt);game.update(dt);game.render();M.clicked=false;requestAnimationFrame(gameLoop);
+}
+
+function startPlaying(){game.state=ST.PLAY;game.msg('=== 任务开始 ===');game.msg('铁十字号潜入北大西洋...');
+  game.spawnEnemy('merchant');game.spawnEnemy('merchant');game.spawnEnemy('merchant');
+  for(let i=0;i<5;i++){game.spawnEnemy('cruiser',300+Math.random()*300,0);game.spawnEnemy('cruiser',WW-600+Math.random()*300,0)}
+  setTimeout(()=>{if(game.state===ST.PLAY){game.spawnEnemy('destroyer');game.spawnEnemy('destroyer')}},5000);
+  setTimeout(()=>{if(game.state===ST.PLAY)game.spawnEnemy('submarine')},12000);
+  setTimeout(()=>{if(game.state===ST.PLAY)game.spawnEnemy('submarine')},20000);
+}
+function openCrew(i){game.crewPanel.team=i;game.state=ST.CREW;sfxSel()}
+function execAction(ti,ai){
+  const p=game.player;
+  switch(ti){
+    case 0:if(ai===0){const r=p.repairArmor(20);game.msg(`[猎鹰小组] ${r}`);sfxSel()}break;
+    case 1:if(ai===0){let found=false;
+      // Search nearby wrecks
+      for(const w of game.wrecks){if(w.nearPlayer&&!w.looted){w.looted=true;
+        const intelRoll=Math.random();
+        let intelMsg='';
+        if(intelRoll<0.35){// 35% chance: intel reveals nearby enemies
+          for(const e of game.enemies){if(!e.sonarMarked){e.sonarMarked=true;e.markedTimer=300;intelMsg=' | 情报: 发现敌方单位位置！'}}
+          if(!intelMsg)intelMsg=' | 未发现额外情报';
+        }else if(intelRoll<0.55){// 20% chance: score bonus from documents
+          game.score+=150;intelMsg=' | 情报: 缴获机密文件！+150分';
+        }else if(intelRoll<0.7){// 15% chance: find extra supplies
+          p.normalTorps+=2;p.power=Math.min(100,p.power+20);intelMsg=' | 情报: 发现隐藏物资舱！+2鱼雷 +20%电力';
+        }
+        p.normalTorps+=w.loot.torpedoes;p.power=Math.min(100,p.power+w.loot.power);
+        if(w.loot.cruiseTorps)p.cruiseTorps+=w.loot.cruiseTorps;
+        if(w.loot.missile)p.missiles+=w.loot.missile;
+        let lootStr=`+${w.loot.torpedoes}鱼雷 +${Math.round(w.loot.power)}%电力`;
+        if(w.loot.cruiseTorps)lootStr+=` +${w.loot.cruiseTorps}巡航鱼雷`;
+        if(w.loot.missile)lootStr+=` +${w.loot.missile}导弹`;
+        game.msg(`[大白鲨小组] 搜索沉船！${lootStr}${intelMsg}`);
+        found=true;sfxSel();break;
+      }}
+      // If no wreck nearby, try intelligence sweep (30% chance to find something)
+      if(!found&&Math.random()<0.3){
+        const intelTypes=['盟军护航队航线图','德军情报站加密电报','敌方潜艇巡逻时间表','气象预报与海流图','盟军港口防御部署'];
+        const intel=intelTypes[Math.floor(Math.random()*intelTypes.length)];
+        game.score+=80+Math.floor(Math.random()*100);
+        game.msg(`[大白鲨小组] 情报搜集：获得「${intel}」！+${80+Math.floor(Math.random()*100)}分`);
+        // Possibly mark nearby enemies
+        if(Math.random()<0.4)for(const e of game.enemies){if(!e.sonarMarked&&Math.random()<0.5){e.sonarMarked=true;e.markedTimer=240}}
+        sfxSel();
+      }else if(!found)game.msg('[大白鲨小组] 附近无可搜索目标，情报扫描未发现异常');
+    }break;
+    case 2:if(ai===0){if(p.batteries>0&&p.power<90){game.batterySwapping=true;game.batterySwapProgress=0;game.msg('[巨鲸小组] 开始更换电池...');sfxSel()}else if(p.batteries<=0)game.msg('[巨鲸小组] 没有备用电池！');else game.msg('[巨鲸小组] 电力充足')}else if(ai===1){game.msg(`[状态] O₂:${Math.round(p.oxygen)}% 电力:${Math.round(p.power)}% 压力:${Math.round(p.hullStress)}% 装甲:${Math.round(p.armorIntegrity)}%`);game.msg(`电池:${p.batteries} 士气:${Math.round(p.morale)}% 普通鱼雷:${p.normalTorps} 巡航:${p.cruiseTorps} 导弹:${p.missiles}`);game.state=ST.PLAY}break;
+    case 3:if(ai===0){const r=p.toggleSpotlight();game.msg(`[北冰洋小组] ${r}`);sfxSel()}else if(ai===1){const r=p.activeSonar(game);game.msg(`[北冰洋小组] ${r}`);game.state=ST.PLAY}break;
+    case 4:if(ai<=2){game.msg('[雷霆小组] 请在游戏画面中点击目标敌舰...');game.state=ST.PLAY;game._pendingAttack=ai;sfxSel()}break;
+  }
+}
+
+function handleInput(dt){
+  switch(game.state){
+    case ST.MENU:
+      if(K['w']&&!K._wp){game.menuSel=(game.menuSel-1+4)%4;sfxClick()}if(K['s']&&!K._sp){game.menuSel=(game.menuSel+1)%4;sfxClick()}
+      if(K['enter']||K[' ']){ia();sfxSel();menuSelect()}
+      if(M.clicked){ia();sfxSel();
+        // Check volume buttons
+        if(game._volRects)for(const vr of game._volRects){if(M.x>=vr.x&&M.x<=vr.x+vr.w&&M.y>=vr.y&&M.y<=vr.y+vr.h){if(vr.act==='up')setBGMVolume(bgmVolume+0.1);else if(vr.act==='down')setBGMVolume(bgmVolume-0.1);else toggleBGM();return}}
+        menuSelect()}break;
+    case ST.INTRO:
+      // Skip: ESC key or click skip button
+      const skx=W-120,sky=15,skw=105,skh=28;
+      const skClicked=M.clicked&&M.y>=sky&&M.y<=sky+skh&&M.x>=skx&&M.x<=skx+skw;
+      if(K['escape']||skClicked){game.introPhase=game.introTexts.length;sfxClick()}
+      if(M.clicked||K['enter']||K[' ']){game.introPhase++;game.introTimer=0;sfxClick();if(game.introPhase>=game.introTexts.length){startPlaying()}}game.introTimer+=dt;break;
+    case ST.PLAY:
+      if(K['1']&&!K._1p)openCrew(0);if(K['2']&&!K._2p)openCrew(1);if(K['3']&&!K._3p)openCrew(2);if(K['4']&&!K._4p)openCrew(3);if(K['5']&&!K._5p)openCrew(4);
+      if(K[' ']&&!K._spacep)game.player.activeSonar(game);
+      if(K['s']&&game.breaching){game.breaching=false;game.breachProgress=0;game.player.oxygen=Math.max(0,Math.min(100,game.player.oxygen+40));game.msg('换气中断！已补充40%氧气')}
+      if(K['escape']&&!K._escp){game.state=ST.PAUSE;game.msg('游戏暂停 - 按ESC继续')}else if(K['p']&&!K._pp){game.state=ST.PAUSE;game.msg('游戏暂停 - 按P继续')}
+      if(M.clicked&&!game.batterySwapping)handleClick();
+      break;
+    case ST.PAUSE:
+      if((K['escape']&&!K._escp)||(K['p']&&!K._pp)){game.state=ST.PLAY;game.msg('游戏继续')}
+      if(K['m']&&!K._mp){game.state=ST.MENU;game.menuSel=0}break;
+    case ST.CREW:
+      if(K['1']&&!K._1p){K._1p=true;execAction(game.crewPanel.team,0)}
+      if(K['2']&&!K._2p){K._2p=true;execAction(game.crewPanel.team,1)}
+      if(K['3']&&!K._3p){K._3p=true;execAction(game.crewPanel.team,2)}
+      if(K['4']&&!K._4p){K._4p=true;game.crewPanel.team=3}
+      if(K['5']&&!K._5p){K._5p=true;game.crewPanel.team=4}
+      if(K['escape']&&!K._escp){game.state=ST.PLAY;game._crewBtnHover=-1}
+      if(M.clicked){handleCrewClick()}break;
+    case ST.EVENT:
+      if(M.clicked)handleEventClick();break;
+    case ST.OVER:
+      game.gameOverTimer-=dt;if((M.clicked||K['enter']||K[' '])&&game.gameOverTimer<0){game.state=ST.MENU;game.menuSel=0}break;
+    case ST.SCORES:case ST.HELP:
+      if(M.clicked||K['escape']||K['enter']||K[' ']){game.state=ST.MENU;game.menuSel=game.state===ST.SCORES?1:2}break;
+  }
+  K._wp=K['w'];K._sp=K['s'];K._1p=K['1'];K._2p=K['2'];K._3p=K['3'];K._4p=K['4'];K._5p=K['5'];K._spacep=K[' '];K._escp=K['escape'];K._pp=K['p'];K._mp=K['m'];
+}
+
+function menuSelect(){switch(game.menuSel){case 0:game.startGame();break;case 1:game.state=ST.SCORES;game.highScores=ldS();break;case 2:game.state=ST.HELP;break;case 3:window.close();break}}
+
+function handleClick(){
+  const cx0=game.camera.x,cy0=game.camera.y;
+  // 1. Check crew buttons at bottom
+  if(game._crewBtnRects){for(const br of game._crewBtnRects){if(M.x>=br.x&&M.x<=br.x+br.w&&M.y>=br.y&&M.y<=br.y+br.h){openCrew(br.team);return}}}
+  // 2. Check player sub click (larger hitbox: 35px)
+  const psx=W/2+(game.player.x-cx0)*MTX,psy=H/2+(game.player.depth-cy0)*MTX;
+  if(Math.sqrt((M.x-psx)**2+(M.y-psy)**2)<35){openCrew(2);return}
+  // 3. Check wrecks
+  for(const w of game.wrecks){if(!w.nearPlayer||w.looted)continue;const wx=W/2+(w.x-cx0)*MTX,wy=H/2+(w.depth-cy0)*MTX;if(Math.sqrt((M.x-wx)**2+(M.y-wy)**2)<22){openCrew(1);return}}
+  // 4. Check enemies
+  for(const e of game.enemies){const ex=W/2+(e.x-cx0)*MTX,ey=H/2+(e.y-cy0)*MTX;const hitR=e.type==='cruiser'?35:e.type==='merchant'?30:25;if(Math.sqrt((M.x-ex)**2+(M.y-ey)**2)<hitR){const tp=game._pendingAttack!==undefined?game._pendingAttack:0;const tn=tp===0?'normal':tp===1?'cruise':'missile';game.fireTorp(e,tn);game._pendingAttack=undefined;return}}
+  // Click on empty space clears pending attack
+  game._pendingAttack=undefined;
+}
+
+function handleCrewClick(){
+  const pcx=W/2,pcy=H/2,pw=640,ph=420;
+  // Close if clicked outside
+  if(M.x<pcx-pw/2||M.x>pcx+pw/2||M.y<pcy-ph/2||M.y>pcy+ph/2){game.state=ST.PLAY;game._crewBtnHover=-1;return}
+  // Check team tabs (top)
+  for(let i=0;i<5;i++){const tx=pcx-pw/2+8+i*126;if(M.x>=tx&&M.x<=tx+122&&M.y>=pcy-ph/2-28&&M.y<=pcy-ph/2+4){game.crewPanel.team=i;sfxClick();return}}
+  // Check action buttons in content area
+  const rx=pcx-pw/2+15+160+15,ry=pcy-ph/2+15,dsy=ry+46,aby=dsy+48;
+  const acts=[[1],[1],[2],[2],[3]]; // number of actions per team
+  const na=acts[game.crewPanel.team][0];
+  for(let i=0;i<na;i++){const ay=aby+i*58;if(M.x>=rx&&M.x<=rx+(pw-160-45)&&M.y>=ay&&M.y<=ay+50){execAction(game.crewPanel.team,i);return}}
+}
+
+function handleEventClick(){
+  if(!game.activeEvent)return;const ecx=W/2,ecy=H/2,ew=580;let yOff=58;const desc=game.activeEvent.description;let line='';for(let i=0;i<desc.length;i++){line+=desc[i];if(line.length>42||i===desc.length-1){yOff+=19;line=''}}
+  const eh=310+game.activeEvent.choices.length*58;
+  for(let i=0;i<game.activeEvent.choices.length;i++){const cy=ecy-eh/2+yOff+18+i*55;if(M.y>=cy&&M.y<=cy+46&&M.x>=ecx-ew/2+18&&M.x<=ecx+ew/2-18){sfxSel();game.resolveEvent(i);return}}
+}
+
+// ===== START =====
+requestAnimationFrame(gameLoop);
+console.log('SUBMARINE | 北大西洋潜艇战 · 1943');
+console.log('W/S:深度 A/D:转向/前进 SPACE:声呐 1-5:小组 点击:攻击/管理');
+</script>
+</body>
+</html>

@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 美加墨世界杯 - 教练模式</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0a1a;color:#e0e0e0;overflow-x:hidden;min-height:100vh}
+body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at 50% 0%,#1a1a3e 0%,#0a0a1a 60%);z-index:-1}
+@keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 20px rgba(255,215,0,.3)}50%{box-shadow:0 0 40px rgba(255,215,0,.6)}}
+@keyframes glow{0%,100%{text-shadow:0 0 10px rgba(255,215,0,.5)}50%{text-shadow:0 0 25px rgba(255,215,0,.9)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@keyframes scorePop{0%{transform:scale(1)}50%{transform:scale(1.5);color:#ffd700}100%{transform:scale(1)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+.screen{display:none;padding:20px;max-width:1200px;margin:0 auto;animation:fadeIn .5s ease}
+.screen.active{display:block}
+h1{text-align:center;font-size:2.5em;margin:20px 0;background:linear-gradient(135deg,#ffd700,#ff8c00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:glow 3s infinite}
+h2{color:#ffd700;margin:15px 0;font-size:1.5em;border-bottom:2px solid rgba(255,215,0,.3);padding-bottom:8px}
+h3{color:#ffd700;margin:10px 0;font-size:1.1em}
+.btn{background:linear-gradient(135deg,#1a3a5c,#0d2137);color:#ffd700;border:1px solid rgba(255,215,0,.4);padding:12px 28px;border-radius:8px;cursor:pointer;font-size:1em;transition:all .3s;margin:5px}
+.btn:hover{background:linear-gradient(135deg,#2a5a8c,#1a3a5c);border-color:#ffd700;transform:translateY(-2px)}
+.btn.gold{background:linear-gradient(135deg,#b8860b,#ffd700);color:#0a0a1a;font-weight:700;border:none}
+.btn.gold:hover{background:linear-gradient(135deg,#daa520,#ffd700)}
+.btn.danger{background:linear-gradient(135deg,#8b0000,#dc143c);border-color:rgba(220,20,60,.5)}
+.btn.small{padding:6px 14px;font-size:.85em}
+.card{background:rgba(20,20,50,.8);border:1px solid rgba(255,215,0,.2);border-radius:12px;padding:20px;margin:10px 0;backdrop-filter:blur(10px)}
+.card:hover{border-color:rgba(255,215,0,.4)}
+.team-card{cursor:pointer;text-align:center;transition:all .4s;position:relative;overflow:hidden}
+.team-card:hover{transform:translateY(-8px);border-color:#ffd700;box-shadow:0 15px 40px rgba(255,215,0,.2)}
+.team-card .flag{font-size:4em;margin:10px 0}
+.team-card .name{font-size:1.4em;font-weight:700;color:#ffd700}
+.team-card .info{font-size:.85em;color:#aaa;margin-top:5px}
+.team-card .rating{display:inline-block;background:rgba(255,215,0,.2);padding:3px 10px;border-radius:20px;font-size:.8em;margin-top:8px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:15px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.grid5{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px}
+.flex{display:flex;gap:15px;flex-wrap:wrap}
+.flex-center{display:flex;align-items:center;justify-content:center;gap:10px}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+.story-text{line-height:1.8;font-size:1.05em;background:rgba(0,0,0,.3);padding:20px;border-radius:10px;border-left:4px solid #ffd700;margin:15px 0}
+.choice-btn{display:block;width:100%;text-align:left;padding:15px 20px;margin:8px 0;background:rgba(30,30,60,.8);border:1px solid rgba(255,215,0,.3);border-radius:8px;cursor:pointer;color:#e0e0e0;transition:all .3s}
+.choice-btn:hover{background:rgba(40,40,80,.8);border-color:#ffd700;padding-left:30px}
+.choice-btn .effect{font-size:.8em;color:#ffa500;margin-top:5px}
+.event-log{max-height:300px;overflow-y:auto;padding:10px;background:rgba(0,0,0,.4);border-radius:8px;font-size:.9em}
+.event-log .event{padding:6px 10px;margin:3px 0;border-radius:4px;animation:slideIn .3s ease}
+.event-log .goal{background:rgba(255,215,0,.2);border-left:3px solid #ffd700}
+.event-log .card-event{background:rgba(255,0,0,.15);border-left:3px solid #ff0000}
+.event-log .sub{background:rgba(0,200,0,.1);border-left:3px solid #00c800}
+.event-log .info-event{background:rgba(100,100,255,.1);border-left:3px solid #6495ed}
+.pitch{background:linear-gradient(180deg,#0a2e0a 0%,#134413 20%,#1a5c1a 40%,#1a5c1a 60%,#134413 80%,#0a2e0a 100%);border-radius:20px;padding:0;position:relative;min-height:520px;border:3px solid rgba(255,255,255,.15);box-shadow:inset 0 0 120px rgba(0,0,0,.4);overflow:hidden}
+.formation-player{position:absolute;text-align:center;cursor:pointer;transition:all .3s;z-index:2}
+.formation-player:hover{transform:scale(1.15);z-index:10}
+.formation-player .p-name{font-size:.7em;color:#fff;font-weight:600;text-shadow:0 0 8px rgba(0,0,0,.8);white-space:nowrap}
+.formation-player .p-rating{font-size:.65em;color:#ffd700;text-shadow:0 0 5px rgba(0,0,0,.8)}
+.formation-player .dot{width:28px;height:28px;border-radius:50%;margin:0 auto 3px;border:2px solid #fff;box-shadow:0 0 10px rgba(255,255,255,.3)}
+.formation-player.home .dot{background:rgba(200,50,50,.8)}
+.formation-player.away .dot{background:rgba(50,50,200,.8)}
+.formation-player.injured .dot{background:#666!important;border-color:#999}
+.formation-player.booked .dot::after{content:'⬜';position:absolute;top:-5px;right:-5px;font-size:10px}
+.formation-player.subbed .dot{opacity:.5}
+.scoreboard{display:flex;align-items:center;justify-content:center;gap:30px;background:rgba(0,0,0,.7);padding:15px 30px;border-radius:15px;margin:15px 0;border:2px solid rgba(255,215,0,.3)}
+.scoreboard .team-name{font-size:1.2em;font-weight:700;color:#ffd700}
+.scoreboard .score{font-size:3em;font-weight:900;color:#fff}
+.scoreboard .score.goal-scored{animation:scorePop .6s ease}
+.scoreboard .time{font-size:1em;color:#ffa500;text-align:center}
+.match-info-bar{display:flex;justify-content:space-around;background:rgba(0,0,0,.5);padding:10px;border-radius:8px;margin:8px 0;font-size:.85em;flex-wrap:wrap}
+.stat-bar{display:flex;align-items:center;gap:8px;margin:5px 0}
+.stat-bar .bar{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden}
+.stat-bar .fill{height:100%;border-radius:3px;transition:width 1s ease}
+.stat-row{display:flex;justify-content:space-between;margin:4px 0;padding:4px 8px;border-radius:4px}
+.stat-row:nth-child(odd){background:rgba(255,255,255,.03)}
+select,input[type='range']{background:#1a1a3e;color:#e0e0e0;border:1px solid rgba(255,215,0,.3);padding:8px 12px;border-radius:6px;font-size:.9em}
+select:focus{outline:none;border-color:#ffd700}
+.tab-btn{padding:8px 20px;background:rgba(30,30,60,.5);border:1px solid rgba(255,255,255,.2);color:#aaa;cursor:pointer;border-radius:6px 6px 0 0;transition:all .3s}
+.tab-btn.active{background:rgba(40,40,80,.8);color:#ffd700;border-color:rgba(255,215,0,.4);border-bottom-color:transparent}
+.tab-content{display:none;padding:15px;background:rgba(20,20,50,.5);border-radius:0 8px 8px 8px;border:1px solid rgba(255,215,0,.15)}
+.tab-content.active{display:block}
+.player-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;margin:3px 0;background:rgba(0,0,0,.2);border-radius:6px;cursor:pointer;transition:all .2s}
+.player-row:hover{background:rgba(40,40,80,.4)}
+.player-row.selected{background:rgba(255,215,0,.15);border:1px solid rgba(255,215,0,.4)}
+.player-row.inj{opacity:.5}
+.player-row .pos-badge{padding:2px 8px;border-radius:4px;font-size:.75em;font-weight:600}
+.pos-gk{background:rgba(255,200,0,.3);color:#ffc800}
+.pos-def{background:rgba(50,150,255,.3);color:#69b4ff}
+.pos-mid{background:rgba(50,200,100,.3);color:#5cdb8b}
+.pos-fwd{background:rgba(255,80,80,.3);color:#ff6b6b}
+.stamina-bar{width:60px;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}
+.stamina-fill{height:100%;border-radius:3px;transition:all .5s}
+.stamina-high{background:#4caf50}.stamina-mid{background:#ff9800}.stamina-low{background:#f44336}
+.modal{display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,.85);z-index:9999}
+.modal.active{display:flex!important;justify-content:center!important;align-items:center!important;flex-direction:column!important}
+.modal-content{background:#1a1a3e;border:2px solid rgba(255,215,0,.4);border-radius:15px;padding:25px;max-width:750px;width:95%;max-height:85vh;overflow-y:auto;animation:slideUp .4s ease;margin:0 auto}
+.trophy{font-size:5em;animation:float 3s ease infinite;text-align:center}
+.progress-path{display:flex;justify-content:center;gap:5px;margin:20px 0;flex-wrap:wrap}
+.progress-node{width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8em;text-align:center;border:2px solid rgba(255,255,255,.3);background:rgba(0,0,0,.5)}
+.progress-node.current{animation:pulse 2s infinite;border-color:#ffd700;background:rgba(255,215,0,.2)}
+.progress-node.done{background:rgba(0,200,0,.3);border-color:#4caf50}
+.progress-node.lost{background:rgba(255,0,0,.3);border-color:#f44336}
+.progress-arrow{display:flex;align-items:center;color:#ffd700;font-size:1.2em}
+.watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);font-size:5em;color:rgba(255,255,255,.03);pointer-events:none;font-weight:900;white-space:nowrap}
+.tactic-chip{padding:8px 15px;border-radius:20px;cursor:pointer;border:1px solid rgba(255,255,255,.2);font-size:.85em;transition:all .3s;background:rgba(30,30,60,.5)}
+.tactic-chip:hover,.tactic-chip.active{background:rgba(255,215,0,.2);border-color:#ffd700;color:#ffd700}
+.slider-group{margin:12px 0}
+.slider-group label{display:block;margin-bottom:4px;color:#ccc;font-size:.9em}
+.slider-group input[type=range]{width:100%}
+.penalty-shootout{text-align:center;font-size:1.5em;letter-spacing:5px}
+.penalty-shootout .made{color:#4caf50}.penalty-shootout .miss{color:#f44336}
+.stadium-badge{display:inline-block;padding:5px 12px;background:rgba(255,215,0,.15);border-radius:20px;font-size:.8em;color:#ffd700}
+.training-card{padding:15px;border-radius:10px;cursor:pointer;border:1px solid rgba(255,255,255,.2);transition:all .3s;text-align:center}
+.training-card:hover{border-color:#ffd700;background:rgba(255,215,0,.1)}
+.training-card .icon{font-size:2em;margin-bottom:8px}
+.conflict-indicator{display:inline-block;padding:3px 8px;border-radius:4px;font-size:.75em;background:rgba(255,100,0,.3);color:#ff8c00}
+@media(max-width:768px){h1{font-size:1.8em}.scoreboard .score{font-size:2em}.pitch{min-height:350px}}
+
+.match-sidebar{width:300px;display:flex;flex-direction:column;gap:8px}
+.speed-btn{padding:4px 10px;font-size:.75em;border-radius:4px;cursor:pointer;border:1px solid rgba(255,215,0,.3);background:rgba(30,30,60,.5);color:#aaa;transition:all .2s}
+.speed-btn.active{background:rgba(255,215,0,.2);border-color:#ffd700;color:#ffd700}
+.speed-btn:hover{border-color:#ffd700;color:#ffd700}
+.match-sidebar .card{padding:10px;margin:4px 0}
+.match-sidebar h3{font-size:.95em;margin:5px 0}
+.match-sidebar .slider-group{margin:6px 0}
+.match-sidebar .slider-group label{font-size:.8em}
+.match-sidebar input[type=range]{padding:2px;font-size:.8em}
+.match-sidebar select{padding:4px;font-size:.8em}
+
+@keyframes confetti{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(-200px) rotate(720deg);opacity:0}}
+@keyframes trophyShine{0%,100%{filter:brightness(1)}50%{filter:brightness(1.5)}}
+.confetti{position:fixed;pointer-events:none;z-index:999;animation:confetti 3s ease-out forwards}
+.trophy-icon{animation:float 2s ease infinite,trophyShine 3s ease infinite}
+.match-break-modal{text-align:center}
+.match-break-modal .btn{margin:8px;min-width:150px}
+</style>
+</head>
+<body>
+<div id="screen-team-select" class="screen active">
+<h1>🏆 2026 美加墨世界杯</h1>
+<p style="text-align:center;color:#aaa;margin-bottom:20px">教练模式 · 选择你的球队，冲击世界之巅</p>
+<div class="grid5" id="team-select-grid"></div>
+</div>
+<div id="screen-story" class="screen"><h1>📖 球队内幕</h1><div id="story-content"></div></div>
+<div id="screen-press" class="screen"><h1>🎙️ 赛前新闻发布会</h1><div id="press-content"></div></div>
+<div id="screen-lineup" class="screen"><h1>⚽ 排兵布阵</h1><div id="lineup-content"></div></div>
+<div id="screen-match" class="screen">
+<div class="scoreboard">
+<div><span class="team-name" id="match-home-name"></span></div>
+<div><span class="score" id="match-home-score">0</span></div>
+<div style="text-align:center"><span class="time" id="match-time">00:00</span><br><span style="font-size:.75em;color:#aaa" id="match-half">上半场</span></div>
+<div><span class="score" id="match-away-score">0</span></div>
+<div><span class="team-name" id="match-away-name"></span></div>
+</div>
+<div class="match-info-bar">
+<span id="match-stadium"></span><span id="match-temp"></span>
+<span id="match-possession">控球率 50% - 50%</span><span id="match-shots">射门 0 - 0</span>
+</div>
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+<div style="flex:1;min-width:300px"><div class="pitch" id="match-pitch"></div></div>
+<div style="width:280px"><h3>📋 比赛事件</h3><div class="event-log" id="match-events"></div><div id="match-actions" style="margin-top:10px"></div></div>
+</div>
+</div>
+<div id="screen-postmatch" class="screen"><h1>📊 比赛结果</h1><div id="postmatch-content"></div></div>
+<div id="screen-training" class="screen"><h1>🏋️ 训练安排</h1><div id="training-content"></div></div>
+<div id="screen-progress" class="screen"><h1>🏟️ 世界杯之路</h1><div id="progress-content"></div></div>
+<div id="screen-gameover" class="screen"><div class="trophy" id="gameover-emoji"></div><h1 id="gameover-title"></h1><div id="gameover-content"></div></div>
+<div class="modal" id="modal"><div class="modal-content" id="modal-content"></div></div>
+<script>
+var TEAMS={portugal:{id:'portugal',name:'葡萄牙',flag:'🇵🇹',color:'#b22222',rating:86,desc:'欧洲技术流强队，中场控制力出色，C罗率领的黄金一代渴望再创辉煌',strength:'中场控制力强，逆境下C罗能力爆发，边路传中威胁大',weakness:'主帅马丁内斯战术僵化，进攻可能便秘，过于依赖球星个人能力',special:'因若塔去世，全队空前团结，为队友而战的信念成为精神支柱',
+p:[{n:1,nm:'迪奥戈·科斯塔',ps:'GK',rt:86,cl:'波尔图',lg:'葡超'},{n:12,nm:'若泽·萨',ps:'GK',rt:82,cl:'狼队',lg:'英超'},{n:22,nm:'鲁伊·席尔瓦',ps:'GK',rt:80,cl:'里斯本竞技',lg:'葡超'},{n:5,nm:'迪奥戈·达洛特',ps:'RB',rt:84,cl:'曼联',lg:'英超'},{n:6,nm:'马特乌斯·努内斯',ps:'RB',ap:'CM',ar:82,rt:83,cl:'曼城',lg:'英超'},{n:2,nm:'内尔松·塞梅多',ps:'RB',rt:82,cl:'费内巴切',lg:'土超'},{n:20,nm:'若昂·坎塞洛',ps:'RB',ap:'LB',ar:85,rt:87,cl:'巴塞罗那',lg:'西甲'},{n:25,nm:'努诺·门德斯',ps:'LB',ap:'CB',ar:87,rt:91,cl:'巴黎圣日耳曼',lg:'法甲'},{n:14,nm:'贡萨洛·伊纳西奥',ps:'CB',rt:84,cl:'里斯本竞技',lg:'葡超'},{n:13,nm:'雷纳托·韦加',ps:'CB',rt:85,cl:'比利亚雷亚尔',lg:'西甲'},{n:3,nm:'鲁本·迪亚斯',ps:'CB',rt:87,cl:'曼城',lg:'英超'},{n:4,nm:'托马斯·阿劳若',ps:'CB',rt:80,cl:'本菲卡',lg:'葡超'},{n:8,nm:'布鲁诺·费尔南德斯',ps:'CAM',rt:89,cl:'曼联',lg:'英超'},{n:15,nm:'若昂·内维斯',ps:'CDM',rt:87,cl:'巴黎圣日耳曼',lg:'法甲'},{n:10,nm:'贝尔纳多·席尔瓦',ps:'CAM',ap:'RW',ar:85,rt:87,cl:'皇家马德里',lg:'西甲'},{n:21,nm:'鲁本·内维斯',ps:'CDM',rt:84,cl:'利雅得新月',lg:'沙特联'},{n:23,nm:'维蒂尼亚·费雷拉',ps:'CDM',rt:91,cl:'巴黎圣日耳曼',lg:'法甲'},{n:24,nm:'萨穆·科斯塔',ps:'CDM',rt:79,cl:'马略卡',lg:'西甲'},{n:11,nm:'若昂·费利克斯',ps:'CAM',ap:'LW',ar:85,rt:86,cl:'利雅得胜利',lg:'沙特联'},{n:16,nm:'特林康',ps:'RW',rt:81,cl:'葡萄牙体育',lg:'葡超'},{n:26,nm:'弗朗西斯科·孔塞桑',ps:'RW',ap:'SS',ar:82,rt:81,cl:'尤文图斯',lg:'意甲'},{n:18,nm:'佩德罗·内托',ps:'RW',ap:'LW',ar:85,rt:86,cl:'切尔西',lg:'英超'},{n:17,nm:'拉斐尔·莱昂',ps:'LW',rt:87,cl:'AC米兰',lg:'意甲'},{n:19,nm:'贡萨洛·格德斯',ps:'ST',rt:80,cl:'皇家社会',lg:'西甲'},{n:9,nm:'贡萨洛·拉莫斯',ps:'ST',rt:84,cl:'巴黎圣日耳曼',lg:'法甲'},{n:7,nm:'克里斯蒂亚诺·罗纳尔多',ps:'ST',rt:85,cl:'利雅得胜利',lg:'沙特联'}]},spain:{id:'spain',name:'西班牙',flag:'🇪🇸',color:'#c60b1e',rating:87,desc:'传控足球的殿堂级代表，巴萨青训核心领衔的新生代斗牛士军团',strength:'传控体系成熟，巴萨帮配合默契，全员脚下技术出色',weakness:'年轻经验不足，亚马尔口无遮拦影响团结',special:'加维回归后中场创造力提升',
+p:[{n:23,nm:'乌奈·西蒙',ps:'GK',rt:85,cl:'毕尔巴鄂竞技',lg:'西甲'},{n:1,nm:'戴维·拉亚',ps:'GK',rt:85,cl:'阿森纳',lg:'英超'},{n:13,nm:'霍安·加西亚',ps:'GK',rt:82,cl:'巴塞罗那',lg:'西甲'},{n:12,nm:'佩德罗·波罗',ps:'RB',rt:84,cl:'托特纳姆热刺',lg:'英超'},{n:24,nm:'马克·库库雷利亚',ps:'LB',rt:87,cl:'皇家马德里',lg:'西甲'},{n:22,nm:'保·库巴西',ps:'CB',rt:85,cl:'巴塞罗那',lg:'西甲'},{n:14,nm:'艾默里克·拉波特',ps:'CB',rt:85,cl:'毕尔巴鄂竞技',lg:'西甲'},{n:4,nm:'埃里克·加西亚',ps:'CB',rt:83,cl:'巴塞罗那',lg:'西甲'},{n:2,nm:'马克·普维尔',ps:'CB',rt:82,cl:'马德里竞技',lg:'西甲'},{n:3,nm:'格里马尔多',ps:'LB',rt:85,cl:'勒沃库森',lg:'德甲'},{n:5,nm:'马科斯·略伦特',ps:'RB',rt:84,cl:'马德里竞技',lg:'西甲'},{n:16,nm:'罗德里',ps:'CDM',rt:88,cl:'曼城',lg:'英超'},{n:10,nm:'达尼·奥尔莫',ps:'CAM',rt:87,cl:'巴塞罗那',lg:'西甲'},{n:6,nm:'米克尔·梅里诺',ps:'CAM',rt:83,cl:'阿森纳',lg:'英超'},{n:8,nm:'法比安·鲁伊斯',ps:'CAM',rt:85,cl:'巴黎圣日耳曼',lg:'法甲'},{n:20,nm:'佩德里',ps:'CDM',rt:90,cl:'巴塞罗那',lg:'西甲'},{n:9,nm:'加维',ps:'CAM',rt:86,cl:'巴塞罗那',lg:'西甲'},{n:18,nm:'苏比门迪',ps:'CDM',rt:86,cl:'阿森纳',lg:'英超'},{n:15,nm:'巴埃纳',ps:'CDM',rt:80,cl:'马德里竞技',lg:'西甲'},{n:7,nm:'费兰·托雷斯',ps:'ST',ap:'LW',ar:83,rt:82,cl:'巴塞罗那',lg:'西甲'},{n:21,nm:'奥亚萨瓦尔',ps:'ST',rt:85,cl:'皇家社会',lg:'西甲'},{n:17,nm:'尼科·威廉斯',ps:'LW',rt:87,cl:'毕尔巴鄂竞技',lg:'西甲'},{n:19,nm:'拉明·亚马尔',ps:'RW',ap:'CAM',ar:88,rt:90,cl:'巴塞罗那',lg:'西甲'},{n:11,nm:'耶雷米·皮诺',ps:'ST',rt:79,cl:'水晶宫',lg:'英超'},{n:26,nm:'博尔哈',ps:'RW',rt:78,cl:'塞尔塔',lg:'西甲'},{n:25,nm:'维克托',ps:'ST',rt:77,cl:'奥萨苏纳',lg:'西甲'}]},france:{id:'france',name:'法国',flag:'🇫🇷',color:'#002395',rating:88,desc:'姆巴佩领衔的超级航母，速度与力量的完美结合',strength:'防守反击致命，姆巴佩个人能力超群，阵容深度足',weakness:'攻坚能力不足，姆巴佩与登贝莱存在矛盾',special:'四后卫深度回收+中线拦截陷阱，落后可切换三中卫',
+p:[{n:1,nm:'布里斯·桑巴',ps:'GK',rt:83,cl:'雷恩',lg:'法甲'},{n:16,nm:'迈克·迈尼昂',ps:'GK',rt:87,cl:'AC米兰',lg:'意甲'},{n:23,nm:'罗班·里塞',ps:'GK',rt:79,cl:'朗斯',lg:'法甲'},{n:2,nm:'马洛·古斯托',ps:'RB',rt:83,cl:'切尔西',lg:'英超'},{n:5,nm:'孔德',ps:'RB',ap:'CB',ar:83,rt:85,cl:'巴塞罗那',lg:'西甲'},{n:3,nm:'卢卡·迪涅',ps:'LB',rt:81,cl:'阿斯顿维拉',lg:'英超'},{n:19,nm:'特奥·埃尔南德斯',ps:'LB',rt:87,cl:'利雅得新月',lg:'沙特联'},{n:4,nm:'于帕梅卡诺',ps:'CB',rt:86,cl:'拜仁慕尼黑',lg:'德甲'},{n:15,nm:'科纳泰',ps:'CB',rt:86,cl:'利物浦',lg:'英超'},{n:17,nm:'威廉·萨利巴',ps:'CB',rt:88,cl:'阿森纳',lg:'英超'},{n:21,nm:'卢卡·埃尔南德斯',ps:'CB',rt:82,cl:'巴黎圣日耳曼',lg:'法甲'},{n:26,nm:'拉克鲁瓦',ps:'CB',rt:79,cl:'水晶宫',lg:'英超'},{n:8,nm:'楚阿梅尼',ps:'CDM',rt:86,cl:'皇家马德里',lg:'西甲'},{n:13,nm:'坎特',ps:'CDM',rt:85,cl:'费内巴切',lg:'土超'},{n:14,nm:'拉比奥',ps:'CDM',ap:'CAM',ar:83,rt:86,cl:'AC米兰',lg:'意甲'},{n:6,nm:'马努·科内',ps:'CDM',rt:81,cl:'罗马',lg:'意甲'},{n:18,nm:'扎伊尔-埃梅里',ps:'CAM',rt:84,cl:'巴黎圣日耳曼',lg:'法甲'},{n:11,nm:'迈克尔·奥利塞',ps:'RW',ap:'CAM',ar:89,rt:88,cl:'拜仁慕尼黑',lg:'德甲'},{n:24,nm:'拉扬·谢尔基',ps:'CAM',rt:84,cl:'曼城',lg:'英超'},{n:25,nm:'阿克利乌什',ps:'CAM',rt:79,cl:'摩纳哥',lg:'法甲'},{n:10,nm:'姆巴佩',ps:'ST',ap:'LW',ar:91,rt:91,cl:'皇家马德里',lg:'西甲'},{n:7,nm:'登贝莱',ps:'ST',ap:'LW',ar:87,rt:89,cl:'巴黎圣日耳曼',lg:'法甲'},{n:9,nm:'马库斯·图拉姆',ps:'ST',rt:85,cl:'国际米兰',lg:'意甲'},{n:12,nm:'巴尔科拉',ps:'LW',ap:'RW',ar:84,rt:85,cl:'巴黎圣日耳曼',lg:'法甲'},{n:20,nm:'德西雷·杜埃',ps:'RW',ap:'ST',ar:85,rt:87,cl:'巴黎圣日耳曼',lg:'法甲'},{n:22,nm:'马泰塔',ps:'ST',rt:82,cl:'水晶宫',lg:'英超'}]},belgium:{id:'belgium',name:'比利时',flag:'🇧🇪',color:'#fdda24',rating:83,desc:'黄金一代的最后一舞，德布劳内能否带领红魔突破宿命',strength:'创造力强，德布劳内传球世界级，攻击线天赋满满',weakness:'内部矛盾，后卫转身慢，边路防守漏洞大，关键战心理脆弱',special:'卢卡库大赛爆发属性，多库边路爆点能力顶级',
+p:[{n:1,nm:'库尔图瓦',ps:'GK',rt:89,cl:'皇家马德里',lg:'西甲'},{n:12,nm:'塞内·拉门斯',ps:'GK',rt:82,cl:'曼联',lg:'英超'},{n:13,nm:'迈克·彭德斯',ps:'GK',rt:79,cl:'斯特拉斯堡',lg:'法甲'},{n:15,nm:'默尼耶',ps:'RB',rt:83,cl:'里尔',lg:'法甲'},{n:21,nm:'卡斯塔涅',ps:'RB',ap:'LB',ar:83,rt:83,cl:'富勒姆',lg:'英超'},{n:3,nm:'阿蒂尔·蒂特',ps:'RB',ap:'CB',ar:79,rt:82,cl:'葡萄牙体育',lg:'葡超'},{n:5,nm:'德克伊珀',ps:'LB',rt:82,cl:'布莱顿',lg:'英超'},{n:25,nm:'内森·恩戈伊',ps:'LB',rt:77,cl:'里尔',lg:'法甲'},{n:2,nm:'德巴斯特',ps:'CB',rt:82,cl:'葡萄牙体育',lg:'葡超'},{n:4,nm:'梅切勒',ps:'CB',rt:78,cl:'布鲁日',lg:'比甲'},{n:6,nm:'维特塞尔',ps:'CDM',ap:'CB',ar:79,rt:81,cl:'赫罗纳',lg:'西甲'},{n:16,nm:'科尼·德温特',ps:'CB',rt:81,cl:'AC米兰',lg:'意甲'},{n:18,nm:'若阿金·塞',ps:'CB',rt:80,cl:'布鲁日',lg:'比甲'},{n:7,nm:'德布劳内',ps:'CAM',ap:'RW',ar:87,rt:88,cl:'那不勒斯',lg:'意甲'},{n:8,nm:'蒂勒曼斯',ps:'CAM',rt:86,cl:'阿斯顿维拉',lg:'英超'},{n:24,nm:'阿马杜·奥纳纳',ps:'CDM',rt:85,cl:'阿斯顿维拉',lg:'英超'},{n:20,nm:'瓦纳肯',ps:'CDM',ap:'CAM',ar:79,rt:78,cl:'布鲁日',lg:'比甲'},{n:23,nm:'拉斯金',ps:'CAM',rt:78,cl:'流浪者',lg:'苏超'},{n:19,nm:'迭戈·莫雷拉',ps:'LW',ap:'CDM',ar:80,rt:79,cl:'斯特拉斯堡',lg:'法甲'},{n:11,nm:'多库',ps:'LW',ap:'RW',ar:85,rt:87,cl:'曼城',lg:'英超'},{n:10,nm:'特罗萨德',ps:'LW',ap:'ST',ar:82,rt:84,cl:'阿森纳',lg:'英超'},{n:22,nm:'萨勒马克尔斯',ps:'RW',ap:'RB',ar:80,rt:80,cl:'AC米兰',lg:'意甲'},{n:14,nm:'卢克巴吉奥',ps:'RW',ap:'ST',ar:81,rt:82,cl:'本菲卡',lg:'葡超'},{n:9,nm:'卢卡库',ps:'ST',rt:86,cl:'那不勒斯',lg:'意甲'},{n:17,nm:'德凯特拉雷',ps:'ST',ap:'CAM',ar:85,rt:83,cl:'亚特兰大',lg:'意甲'},{n:26,nm:'费尔南德斯-帕尔多',ps:'ST',rt:79,cl:'里尔',lg:'法甲'}]},argentina:{id:'argentina',name:'阿根廷',flag:'🇦🇷',color:'#75aadb',rating:89,desc:'卫冕冠军！梅西率领的潘帕斯雄鹰再度出征',strength:'梅西持球牵制无解，大赛底蕴独一档，中场控球细腻，定位球稳定',weakness:'过度依赖梅西，纯速度爆点不足，梅西70分钟后体能下滑',special:'卫冕冠军光环，全队为梅西最后一届世界杯全力以赴',
+p:[{n:23,nm:'埃米利亚诺·马丁内斯',ps:'GK',rt:87,cl:'阿斯顿维拉',lg:'英超'},{n:1,nm:'胡安·穆索',ps:'GK',rt:78,cl:'马德里竞技',lg:'西甲'},{n:12,nm:'格罗尼莫·鲁利',ps:'GK',rt:79,cl:'马赛',lg:'法甲'},{n:4,nm:'冈萨洛·蒙铁尔',ps:'RB',rt:82,cl:'河床',lg:'阿超'},{n:26,nm:'纳韦尔·莫利纳',ps:'RB',rt:83,cl:'马德里竞技',lg:'西甲'},{n:3,nm:'塔利亚菲科',ps:'LB',rt:84,cl:'里昂',lg:'法甲'},{n:8,nm:'瓦伦丁·巴尔科',ps:'LB',ap:'LW',ar:80,rt:81,cl:'斯特拉斯堡',lg:'法甲'},{n:25,nm:'法昆多·梅迪纳',ps:'LB',ap:'CB',ar:81,rt:81,cl:'马赛',lg:'法甲'},{n:13,nm:'罗梅罗',ps:'CB',rt:84,cl:'托特纳姆热刺',lg:'英超'},{n:19,nm:'奥塔门迪',ps:'CB',rt:84,cl:'本菲卡',lg:'葡超'},{n:6,nm:'利桑德罗·马丁内斯',ps:'CB',ap:'LB',ar:84,rt:85,cl:'曼联',lg:'英超'},{n:2,nm:'巴列尔迪',ps:'CB',rt:81,cl:'马赛',lg:'法甲'},{n:5,nm:'帕雷德斯',ps:'CDM',rt:85,cl:'博卡青年',lg:'阿超'},{n:7,nm:'德保罗',ps:'CAM',ap:'CDM',ar:87,rt:85,cl:'迈阿密国际',lg:'美职联'},{n:24,nm:'恩佐·费尔南德斯',ps:'CAM',ap:'CDM',ar:88,rt:87,cl:'切尔西',lg:'英超'},{n:20,nm:'麦卡利斯特',ps:'CAM',rt:86,cl:'利物浦',lg:'英超'},{n:11,nm:'洛塞尔索',ps:'CAM',rt:83,cl:'皇家贝蒂斯',lg:'西甲'},{n:14,nm:'帕拉西奥斯',ps:'CAM',rt:81,cl:'勒沃库森',lg:'德甲'},{n:10,nm:'梅西',ps:'RW',ap:'CAM',ar:89,rt:87,cl:'迈阿密国际',lg:'美职联'},{n:9,nm:'胡利安·阿尔瓦雷斯',ps:'ST',ap:'RW',ar:85,rt:87,cl:'马德里竞技',lg:'西甲'},{n:22,nm:'劳塔罗·马丁内斯',ps:'ST',rt:87,cl:'国际米兰',lg:'意甲'},{n:15,nm:'尼古拉斯·冈萨雷斯',ps:'LW',rt:83,cl:'马德里竞技',lg:'西甲'},{n:16,nm:'阿尔马达',ps:'LW',ap:'CAM',ar:83,rt:84,cl:'马德里竞技',lg:'西甲'},{n:17,nm:'朱利亚诺·西蒙尼',ps:'RW',ap:'ST',ar:83,rt:84,cl:'马德里竞技',lg:'西甲'},{n:18,nm:'尼科·帕斯',ps:'RW',ap:'CAM',ar:83,rt:85,cl:'科莫',lg:'意甲'},{n:21,nm:'何塞·洛佩斯',ps:'ST',rt:83,cl:'帕尔梅拉斯',lg:'巴甲'}]}};;
+
+const STORIES={
+portugal:[
+{title:'🇵🇹 序幕：为若塔而战',text:'葡萄牙队更衣室里，若塔的球衣静静挂在墙上。自从他去年不幸离世后，这支球队就带着一种不同寻常的力量在战斗。\n\n队长C罗召集全队："每一场比赛，我们都是11个人在场上，但心里有12个人。若塔在天上看着我们。"\n\n然而，主帅马丁内斯的战术安排引发争议——他坚持保守的4-4-2阵型，球队进攻火力可能受到压制。B费私下找到你（教练），希望你能调整战术。',choices:[{text:'支持马丁内斯，稳定为主',effect:'战术纪律+10',morale:0,chem:5,stats:{attack:-1}},{text:'采纳B费建议，调整进攻战术',effect:'进攻创造力+8',morale:8,chem:3,stats:{attack:1}},{text:'召开全队会议，民主决定',effect:'全队团结+15',morale:12,chem:10,stats:{}}]},
+{title:'🇵🇹 C罗的状态之谜',text:'39岁的C罗在训练中展现出惊人状态，但队医报告显示他的膝盖有轻微不适。打满全场可能增加受伤风险。\n\nC罗本人态度坚决："我能踢满90分钟，加时赛也没问题！"但体能教练悄悄告诉你，C罗的体能最多支撑70分钟。',choices:[{text:'让C罗首发，60分钟后换下',effect:'C罗前60分钟能力+5',morale:5,chem:3,stats:{ronaldoBoost:60}},{text:'让C罗替补，下半场冲击',effect:'下半场C罗能力爆发+8',morale:-3,chem:2,stats:{ronaldoSub:true}},{text:'完全信任C罗，让他打满',effect:'C罗全场+3，受伤风险翻倍',morale:15,chem:5,stats:{ronaldoFull:true,injuryRisk:2}}]},
+{title:'🇵🇹 B费的队长责任',text:'布鲁诺·费尔南德斯作为曼联和葡萄牙的双料核心，承受着巨大压力。媒体批评他在国家队表现不如俱乐部，有声音要求将队长袖标交给C罗。\n\nB费在训练后独自加练到深夜，你看到了他眼中的疲惫和坚定。',choices:[{text:'公开支持B费，确认他的队长地位',effect:'B费能力+3，球队化学+8',morale:5,chem:8,stats:{bfBoost:3}},{text:'将队长袖标交还给C罗',effect:'C罗能力+5，B费可能受影响',morale:10,chem:-5,stats:{cr7Captain:true}},{text:'设立双队长，新老结合',effect:'两人各+2，团结+10',morale:10,chem:10,stats:{dualCaptain:true}}]},
+{title:'🇵🇹 莱昂的觉醒',text:'拉斐尔·莱昂在AC米兰展现出了世界级水准，但在国家队他始终无法复制俱乐部的状态。\n\n心理教练报告说莱昂背负着"国家队表现不佳"的心理包袱。今天训练中他又一次在单刀时犹豫了。',choices:[{text:'给莱昂制定专属战术',effect:'莱昂能力+5',morale:8,chem:5,stats:{leaoBoost:5}},{text:'让他打替补，用表现争取首发',effect:'莱昂可能爆发也可能消沉',morale:-5,chem:3,stats:{leaoBench:true}},{text:'安排一对一心理辅导',effect:'莱昂心理包袱解除',morale:8,chem:8,stats:{leaoMental:true}}]},
+{title:'🇵🇹 马丁内斯的最后机会',text:'主帅罗伯托·马丁内斯承受着下课压力。葡萄牙媒体批评他的战术"僵化"。足协主席暗示：如果本届世界杯成绩不佳，将不再续约。\n\n马丁内斯在战术会议上提出了大胆方案——放弃传统4后卫，改用3中卫体系。',choices:[{text:'支持马丁内斯的变革',effect:'战术多样性+15',morale:5,chem:-5,stats:{formationNew:true}},{text:'坚持现有体系，稳定为主',effect:'保持稳定',morale:3,chem:8,stats:{}},{text:'折中：部分比赛尝试新阵型',effect:'灵活性+8',morale:5,chem:3,stats:{hybridFormation:true}}]},
+{title:'🇵🇹 门德斯vs坎塞洛',text:'努诺·门德斯（91分）和若昂·坎塞洛（87分）都是世界级左后卫。门德斯更年轻、防守更稳健；坎塞洛经验更丰富、进攻更具威胁。\n\n两人在训练中暗自较劲，都希望能成为首发。',choices:[{text:'门德斯首发，坎塞洛替补',effect:'防守稳定性+5',morale:-3,chem:5,stats:{mendesStart:true}},{text:'坎塞洛首发，利用进攻能力',effect:'进攻威胁+5',morale:3,chem:-3,stats:{canceloStart:true}},{text:'根据对手灵活轮换',effect:'两人都保持积极性',morale:5,chem:5,stats:{}}]}
+],
+spain:[
+{title:'🇪🇸 亚马尔的争议言论',text:'西班牙队内气氛紧张。18岁的亚马尔接受采访时放话："没有我，这支球队的进攻就是一团糟。"这句话激怒了奥亚萨瓦尔和费兰·托雷斯等老将。\n\n主教练德拉富恩特非常愤怒，考虑将亚马尔从首发拿下以示惩戒。但亚马尔的个人能力确实无可替代。',choices:[{text:'力挺亚马尔，继续首发',effect:'亚马尔能力+3，团结度-15',morale:-10,chem:-15,stats:{yamalBoost:3}},{text:'拿下亚马尔，维护纪律',effect:'团结+10，进攻威胁下降',morale:5,chem:15,stats:{yamalOut:true}},{text:'私下谈话，让他公开道歉',effect:'亚马尔+1，团结+5',morale:8,chem:8,stats:{yamalApology:true}}]},
+{title:'🇪🇸 传控还是效率？',text:'西班牙传统Tiki-Taka传控在训练中遇到质疑。佩德里在战术会议上直言："有时候我们传了100脚球却进不了禁区，需要更直接的进攻。"\n\n但老将罗德里坚持传控理念："我们的DNA就是控球，失去控球权就什么都不是。"',choices:[{text:'坚持传控，强化训练',effect:'控球率+10%',morale:3,chem:5,stats:{possession:10}},{text:'增加直接进攻元素',effect:'射门次数+15%',morale:5,chem:3,stats:{shots:15}},{text:'根据对手灵活切换',effect:'战术灵活性提升',morale:8,chem:8,stats:{flexible:true}}]},
+{title:'🇪🇸 加维的回归',text:'加维经历了严重膝伤后终于重返赛场。但他的状态尚未恢复到100%，在最近的热身赛中明显缺乏自信。\n\n同时，巴埃纳和苏比门迪在加维缺阵期间表现出色，已经站稳了脚跟。加维的主力位置不再稳固。',choices:[{text:'让加维首发，用比赛找回状态',effect:'加维逐渐恢复，士气+8',morale:8,chem:5,stats:{gaviStart:true}},{text:'加维替补，慢慢恢复',effect:'稳妥方案',morale:-3,chem:8,stats:{gaviSub:true}},{text:'让加维尝试不同位置',effect:'加维重获自信',morale:5,chem:8,stats:{gaviNewRole:true}}]},
+{title:'🇪🇸 库库雷利亚的救赎',text:'马克·库库雷利亚从切尔西转会皇马后表现起伏不定。西班牙媒体称他为"最被高估的左后卫"。\n\n但在最近训练中，库库雷利亚展现出了惊人斗志——每次拼抢都全力以赴，甚至在对抗中撞破眉骨也不肯下场。',choices:[{text:'公开力挺库库雷利亚',effect:'库库雷利亚+5，士气+5',morale:5,chem:8,stats:{cucuBoost:5}},{text:'让他用表现说话',effect:'无变化',morale:3,chem:3,stats:{}},{text:'私下谈话，减轻心理压力',effect:'库库+3，化学+8',morale:5,chem:8,stats:{cucuMental:3}}]},
+{title:'🇪🇸 罗德里的领袖之路',text:'作为曼城和西班牙的双料核心，罗德里被认为是当今世界最好的后腰。但他在国家队一直没有展现出足够的领袖气质。\n\n莫拉塔退出国家队后，西班牙缺少场上的精神领袖。队友们私下说："罗德里应该更多地在场上指挥我们。"',choices:[{text:'正式任命罗德里为第一队长',effect:'罗德里+3，防守组织+10',morale:5,chem:10,stats:{rodriCaptain:true}},{text:'让队内投票选出队长',effect:'民主方式，化学+8',morale:8,chem:8,stats:{voteCaptain:true}},{text:'设立多名队长组成领导小组',effect:'多元化领导',morale:5,chem:5,stats:{}}]},
+{title:'🇪🇸 尼科·威廉斯的崛起',text:'尼科·威廉斯在毕尔巴鄂竞技度过了一个爆发性的赛季。他的速度和突破成为西甲后卫的噩梦。\n\n但现在的问题是：他和亚马尔都是右边锋出身。两人如何共存？战术分析师提出了"双翼齐飞"的方案。',choices:[{text:'尼科左路，亚马尔右路，双翼齐飞',effect:'边路进攻威胁+20',morale:10,chem:5,stats:{dualWings:true}},{text:'轮换使用两人，保持体力',effect:'稳定轮换',morale:5,chem:8,stats:{}},{text:'让尼科尝试中锋位置',effect:'战术创新',morale:8,chem:3,stats:{nicoST:true}}]}
+],
+france:[
+{title:'🇫🇷 姆巴佩与登贝莱的裂痕',text:'法国队更衣室气氛剑拔弩张。姆巴佩和登贝莱在场上的配合越来越少——两人都想要球权，都想成为进攻核心。\n\n上次训练中，两人因一次传球选择发生口角。德尚对此非常头疼。',choices:[{text:'确立姆巴佩为核心',effect:'姆巴佩+5，登贝莱受限',morale:-5,chem:-8,stats:{mbappeBoost:5,dembeleNerf:-3}},{text:'双核战术，各打一边',effect:'各自为战',morale:3,chem:-2,stats:{}},{text:'安排团建，化解矛盾',effect:'化学+12，配合+3',morale:10,chem:12,stats:{bothBoost:3}}]},
+{title:'🇫🇷 坎特的最后之战',text:'队医传来坏消息：坎特在训练中拉伤了小腿肌肉。这位35岁的老将可能无法在下一场首发。\n\n但坎特本人坚持可以带伤上阵："这可能是我最后一届世界杯了，我不能坐在场下。"',choices:[{text:'冒险让坎特首发',effect:'坎特-5，50%伤退，士气+10',morale:10,chem:5,stats:{kanteRisk:true}},{text:'让楚阿梅尼顶替坎特',effect:'防守稍降，楚阿梅尼成长',morale:2,chem:3,stats:{kanteOut:true,tchouameniBoost:3}},{text:'变阵双后腰',effect:'防守稳定性增强',morale:5,chem:5,stats:{formationChange:true}}]},
+{title:'🇫🇷 姆巴佩的金球宣言',text:'赛前新闻发布会上，姆巴佩被问到金球奖的话题。他直言："如果我带领法国队拿下这届世界杯，金球奖就是我的。"\n\n这番言论引发了队内微妙反应——楚阿梅尼、萨利巴等人虽然没有直接回应，但训练中的气氛明显变得紧张。',choices:[{text:'支持姆巴佩的野心',effect:'姆巴佩+5，士气+8',morale:8,chem:-3,stats:{mbappeGoldenBall:true}},{text:'私下提醒姆巴佩注意团队',effect:'姆巴佩收敛，化学+5',morale:3,chem:5,stats:{mbappeHumble:true}},{text:'开队会强调团队高于个人',effect:'化学+10',morale:5,chem:10,stats:{teamFirst:true}}]},
+{title:'🇫🇷 萨利巴的成长烦恼',text:'威廉·萨利巴在阿森纳已成为世界顶级中卫，但在国家队他仍然被于帕梅卡诺和科纳泰压制。\n\n萨利巴的天赋毋庸置疑，但比赛经验不如两位竞争对手。体能数据却显示萨利巴的跑动能力和传球成功率都是队内第一。',choices:[{text:'让萨利巴首发，相信数据',effect:'萨利巴+3，防守现代化+10',morale:5,chem:5,stats:{salibaStart:true}},{text:'保持现有中卫组合',effect:'稳定为主',morale:3,chem:8,stats:{}},{text:'轮换使用三名中卫',effect:'保持竞争，化学+5',morale:5,chem:5,stats:{rotateCB:true}}]},
+{title:'🇫🇷 特奥的转会风波',text:'特奥·埃尔南德斯转会到沙特联赛后，状态一直不稳定。法国媒体质疑他"为了金钱放弃了竞技水平"。\n\n但特奥在训练中依然是最拼的那个——他的速度测试仍然是全队第一。卢卡·埃尔南德斯公开为弟弟辩护。',choices:[{text:'继续信任特奥，让他首发',effect:'特奥+3，兄弟化学+10',morale:8,chem:10,stats:{theoStart:true}},{text:'让卢卡·迪涅首发更稳妥',effect:'防守更稳定',morale:-3,chem:5,stats:{theoBench:true}},{text:'轮换左后卫，保持竞争',effect:'两人互相促进',morale:5,chem:5,stats:{}}]},
+{title:'🇫🇷 奥利塞的魔法左脚',text:'迈克尔·奥利塞在拜仁慕尼黑度过了一个辉煌的赛季。他的左脚技术被誉为"当今足坛前三"。\n\n战术分析师建议围绕奥利塞设计更多的定位球战术。但这也意味着球队需要改变一些既定的进攻套路。',choices:[{text:'围绕奥利塞重新设计定位球',effect:'定位球得分率+20%',morale:5,chem:3,stats:{oliseSetpiece:true}},{text:'保持现有战术体系',effect:'稳定发挥',morale:3,chem:8,stats:{}},{text:'部分定位球交给奥利塞',effect:'折中方案',morale:5,chem:5,stats:{}}]}
+],
+belgium:[
+{title:'🇧🇪 库尔图瓦与德布劳内的心结',text:'比利时队最大的隐患不是对手，而是自己人。库尔图瓦曾与德布劳内的前女友交往，这件事在队内埋下了多年的裂痕。\n\n两人在国家队共事多年，几乎从不直接交流。但现在，作为门将的库尔图瓦和作为队长的德布劳内必须在场上密切配合。',choices:[{text:'强制两人进行沟通',effect:'60%概率和解，40%恶化',morale:0,chem:0,stats:{riskReconcile:true}},{text:'维持现状，各司其职',effect:'化学-5',morale:0,chem:-5,stats:{}},{text:'请心理教练介入调解',effect:'和解概率80%，团结+8',morale:8,chem:5,stats:{mediation:true}}]},
+{title:'🇧🇪 德布劳内依赖症',text:'数据分析师给你看了触目惊心的数据：比利时在德布劳内被重点盯防的比赛中，胜率只有22%。对手策略很明确——锁死德布劳内，进攻就瘫痪了。\n\n蒂勒曼斯和多库都有创造能力，但需要更多战术支持来分担德布劳内的压力。',choices:[{text:'蒂勒曼斯分担组织',effect:'蒂勒曼斯+3',morale:5,chem:5,stats:{tielemansBoost:3}},{text:'强化边路进攻',effect:'多库+2',morale:3,chem:3,stats:{wingBoost:2}},{text:'继续以德布劳内为核心',effect:'德布劳内+5，被锁死则瘫痪',morale:8,chem:2,stats:{kdbSolo:true}}]},
+{title:'🇧🇪 卢卡库的大赛心魔',text:'罗梅卢·卢卡库在俱乐部进球如麻，但在国家队大赛中屡次错失关键机会。2022世界杯对阵克罗地亚的噩梦仍然萦绕在他心头。\n\n今天的训练中，卢卡库在射门练习时表现出色，但一到模拟比赛场景就显得犹豫。心理教练说这是"大赛创伤后遗症"。',choices:[{text:'指定心理教练全程陪伴',effect:'卢卡库+5，大赛心理提升',morale:8,chem:5,stats:{lukakuMental:true}},{text:'减轻卢卡库的压力',effect:'卢卡库放松，进攻多样化',morale:5,chem:8,stats:{lukakuRelax:true}},{text:'公开力挺卢卡库',effect:'卢卡库士气+15！',morale:15,chem:5,stats:{lukakuDefend:true}}]},
+{title:'🇧🇪 多库的突破艺术',text:'杰雷米·多库是当今足坛最令人兴奋的边锋之一。他的过人成功率在欧洲排名前三。\n\n但对手显然针对多库做了功课——他们用双人包夹来限制他的发挥。多库在训练中显得很沮丧："他们根本不让我拿球！"',choices:[{text:'设计战术让多库内切',effect:'多库+3，战术多样性+10',morale:8,chem:3,stats:{dokuInside:true}},{text:'让多库换边避开防守',effect:'多库获得更多空间',morale:5,chem:5,stats:{dokuSwitch:true}},{text:'利用多库吸引防守',effect:'全队进攻效率+10',morale:5,chem:8,stats:{}}]},
+{title:'🇧🇪 黄金一代的最后绝唱',text:'德布劳内、卢卡库、库尔图瓦、维特塞尔——这批"黄金一代"球员已经一起走过了十年。他们最好的成绩是2018世界杯第三名。\n\n这届世界杯将是他们最后的夺冠机会。更衣室里弥漫着一种"now or never"的悲壮气氛。',choices:[{text:'用"最后一舞"激励全队',effect:'士气+20',morale:20,chem:10,stats:{lastDance:true}},{text:'平常心对待，减少压力',effect:'化学+10，稳定',morale:5,chem:10,stats:{}},{text:'让年轻球员担当更多',effect:'新老交替，化学+8',morale:5,chem:8,stats:{newGen:true}}]},
+{title:'🇧🇪 德布劳内的退役计划',text:'媒体爆料称德布劳内正在考虑世界杯后退出国家队。这个消息在队内引起了轩然大波。\n\n年轻球员们私下议论纷纷，老将们则显得心情沉重。德布劳内本人没有否认，只是说"我会在合适的时机告诉大家"。',choices:[{text:'深入谈话，希望他继续',effect:'德布劳内受感动+5',morale:10,chem:10,stats:{kdbStay:true}},{text:'尊重决定，让这届成为完美谢幕',effect:'为德布劳内而战，士气+15',morale:15,chem:5,stats:{kdbFarewell:true}},{text:'不公开讨论，专注比赛',effect:'避免干扰',morale:3,chem:5,stats:{}}]}
+],
+argentina:[
+{title:'🇦🇷 最后一舞的梅西',text:'这是梅西的最后一届世界杯。更衣室里所有球员都明白——他们要为梅西再拿一座大力神杯。\n\n年轻球员阿尔马达和尼科·帕斯训练中表现惊艳，主动请缨分担梅西的压力。但已退役的老将迪马利亚提醒："不要把所有希望都压在里奥一个人身上。"',choices:[{text:'让年轻球员更多参与进攻',effect:'阿尔马达/帕斯+3',morale:8,chem:8,stats:{youngBoost:3,messiSave:true}},{text:'围绕梅西构建所有战术',effect:'梅西爆发+5',morale:12,chem:5,stats:{messiBoost:5,messiDrain:true}},{text:'保持卫冕冠军的战术体系',effect:'全队稳健',morale:5,chem:8,stats:{}}]},
+{title:'🇦🇷 高温下的潘帕斯雄鹰',text:'下一场比赛将在中午进行，预计气温高达34°C。对于平均年龄偏大的阿根廷队，这是严峻考验。\n\n尤其是梅西和奥塔门迪，高温将加速体能消耗。体能教练建议增加耐热训练。',choices:[{text:'进行耐热特训',effect:'高温消耗降低20%',morale:3,chem:5,stats:{heatResist:20,stamina:-5}},{text:'常规训练，多用补水暂停',effect:'战术调整空间更大',morale:5,chem:3,stats:{waterBreak:true}},{text:'申请推迟比赛时间',effect:'30%概率成功',morale:3,chem:5,stats:{timeChange:true}}]},
+{title:'🇦🇷 恩佐的领袖野心',text:'恩佐·费尔南德斯在切尔西的表现越来越好，他已经不满足于只是梅西身边的一个配角。\n\n在一次战术讨论中，恩佐主动提出了不同的进攻思路——减少对梅西的依赖，让中场更多地主导进攻。这个提议让队内气氛变得微妙。',choices:[{text:'支持恩佐的想法',effect:'进攻多样性+15',morale:8,chem:5,stats:{enzoPlan:true}},{text:'维持现有体系',effect:'稳定，恩佐可能失望',morale:3,chem:-3,stats:{messiCore:true}},{text:'折中执行恩佐的方案',effect:'战术灵活性+10',morale:5,chem:5,stats:{hybridPlan:true}}]},
+{title:'🇦🇷 大马丁的点球神话',text:'埃米利亚诺·马丁内斯在2022世界杯的点球大战中一战封神。如今他是世界公认的"点球杀手"。\n\n但对手也研究了他——他们发现大马丁在扑点球时有一些可被利用的习惯动作。守门员教练建议调整他的扑救策略。',choices:[{text:'调整扑救策略',effect:'点球扑救率+15%',morale:5,chem:5,stats:{dibuNew:true}},{text:'保持原有风格',effect:'心理稳定',morale:8,chem:3,stats:{dibuOld:true}},{text:'让大马丁自己决定',effect:'自信满满',morale:10,chem:5,stats:{}}]},
+{title:'🇦🇷 劳塔罗的救赎之战',text:'劳塔罗·马丁内斯在2022世界杯上表现不佳，错失了多次关键机会。虽然阿根廷最终夺冠，但劳塔罗一直耿耿于怀。\n\n这届世界杯是他证明自己的机会。他在训练中展现出了前所未有的专注和饥渴。',choices:[{text:'给劳塔罗首发机会',effect:'劳塔罗+8，士气+15',morale:15,chem:5,stats:{lautaroStart:true}},{text:'继续让阿尔瓦雷斯首发',effect:'稳定，劳塔罗可能不满',morale:-5,chem:8,stats:{alvarezStart:true}},{text:'双前锋战术',effect:'进攻最大化',morale:10,chem:3,stats:{dualStriker:true}}]},
+{title:'🇦🇷 梅西与姆巴佩的宿命对决',text:'媒体和球迷都在期待梅西和姆巴佩的再次对决。2022世界杯决赛的两大主角，如今可能在本届世界杯的某个阶段再次相遇。\n\n记者不断追问梅西关于姆巴佩的问题。梅西一如既往地低调，但他的眼神中闪烁着不一样的光芒。',choices:[{text:'以宿敌为动力',effect:'全队士气+12',morale:12,chem:3,stats:{rivalry:true}},{text:'降热，专注眼前的比赛',effect:'化学+8',morale:5,chem:8,stats:{}},{text:'公开回应，制造心理战',effect:'士气+8',morale:8,chem:-3,stats:{mindGame:true}}]}
+]};
+
+var STADIUMS=[{name:'🏟️ 洛杉矶SoFi体育场',city:'洛杉矶',icon:'🌴',cap:'70,000',info:'NFL公羊队/闪电队主场，2026世界杯揭幕战场地'},{name:'🏟️ 迈阿密硬石体育场',city:'迈阿密',icon:'🌊',cap:'65,000',info:'F1迈阿密大奖赛旁，加勒比风情'},{name:'🏟️ 多伦多BMO体育场',city:'多伦多',icon:'🍁',cap:'45,000',info:'加拿大足球圣地，枫叶之国'},{name:'🏟️ 纽约大都会人寿体育场',city:'纽约',icon:'🗽',cap:'82,500',info:'世界之都，2026世界杯决赛场地！'},{name:'🏟️ 芝加哥士兵体育场',city:'芝加哥',icon:'🌬️',cap:'61,500',info:'风城历史地标，NFL传奇场馆'},{name:'🏟️ 墨西哥城阿兹特克体育场',city:'墨西哥城',icon:'🏛️',cap:'87,000',info:'两次世界杯决赛举办地，足球圣殿'}];
+
+var FORMATIONS={
+'4-3-3':{nm:'4-3-3 攻击',slots:{GK:[{x:50,y:88,lb:'GK'}],DEF:[{x:22,y:72,lb:'LB'},{x:38,y:72,lb:'CB'},{x:62,y:72,lb:'CB'},{x:78,y:72,lb:'RB'}],MID:[{x:30,y:48,lb:'CM'},{x:50,y:48,lb:'CDM'},{x:70,y:48,lb:'CAM'}],FWD:[{x:22,y:22,lb:'LW'},{x:50,y:18,lb:'ST'},{x:78,y:22,lb:'RW'}]}},
+'4-2-3-1':{nm:'4-2-3-1 均衡',slots:{GK:[{x:50,y:88,lb:'GK'}],DEF:[{x:22,y:72,lb:'LB'},{x:38,y:72,lb:'CB'},{x:62,y:72,lb:'CB'},{x:78,y:72,lb:'RB'}],MID:[{x:35,y:52,lb:'CDM'},{x:65,y:52,lb:'CDM'},{x:22,y:32,lb:'LW'},{x:50,y:28,lb:'CAM'},{x:78,y:32,lb:'RW'}],FWD:[{x:50,y:14,lb:'ST'}]}},
+'3-5-2':{nm:'3-5-2 控场',slots:{GK:[{x:50,y:88,lb:'GK'}],DEF:[{x:35,y:72,lb:'CB'},{x:50,y:72,lb:'CB'},{x:65,y:72,lb:'CB'}],MID:[{x:15,y:55,lb:'LM'},{x:35,y:45,lb:'CM'},{x:50,y:45,lb:'CDM'},{x:65,y:45,lb:'CM'},{x:85,y:55,lb:'RM'}],FWD:[{x:38,y:20,lb:'ST'},{x:62,y:20,lb:'ST'}]}},
+'4-4-2':{nm:'4-4-2 传统',slots:{GK:[{x:50,y:88,lb:'GK'}],DEF:[{x:22,y:72,lb:'LB'},{x:38,y:72,lb:'CB'},{x:62,y:72,lb:'CB'},{x:78,y:72,lb:'RB'}],MID:[{x:20,y:50,lb:'LM'},{x:40,y:50,lb:'CM'},{x:60,y:50,lb:'CM'},{x:80,y:50,lb:'RM'}],FWD:[{x:38,y:22,lb:'ST'},{x:62,y:22,lb:'ST'}]}},
+'5-3-2':{nm:'5-3-2 防守',slots:{GK:[{x:50,y:88,lb:'GK'}],DEF:[{x:15,y:75,lb:'LWB'},{x:30,y:72,lb:'CB'},{x:50,y:72,lb:'CB'},{x:70,y:72,lb:'CB'},{x:85,y:75,lb:'RWB'}],MID:[{x:30,y:45,lb:'CDM'},{x:50,y:45,lb:'CDM'},{x:70,y:45,lb:'CM'}],FWD:[{x:38,y:20,lb:'ST'},{x:62,y:20,lb:'ST'}]}},
+'3-4-3':{nm:'3-4-3 高压',slots:{GK:[{x:50,y:88,lb:'GK'}],DEF:[{x:35,y:72,lb:'CB'},{x:50,y:72,lb:'CB'},{x:65,y:72,lb:'CB'}],MID:[{x:22,y:50,lb:'LM'},{x:42,y:50,lb:'CM'},{x:58,y:50,lb:'CM'},{x:78,y:50,lb:'RM'}],FWD:[{x:22,y:20,lb:'LW'},{x:50,y:16,lb:'ST'},{x:78,y:20,lb:'RW'}]}}
+};
+
+var TACTICS={attack:['谨慎防守','稳守反击','平衡','积极进攻','全力猛攻'],passing:['短传渗透','混合传球','长传冲吊','直塞身后','边路传中'],defense:['高位压迫','中线拦截','深度回收','越位陷阱','区域联防'],setpiece:['短角球','高点轰炸','战术任意球','大力射门','快速发出'],special:['Tiki-Taka传控','Gegenpress高压','Catenaccio链式防守','Park the Bus摆大巴','Fergie Time弗格森时间']};
+
+var G={userTeam:null,opponentKey:null,matchIndex:0,allOpponents:[],matchHistory:[],teamMorale:85,teamChemistry:80,playerStamina:{},playerInjuries:{},playerCards:{},matchEvents:[],matchMinute:0,matchHomeScore:0,matchAwayScore:0,matchHalf:1,matchStoppageTime:0,matchStarted:false,matchPaused:false,matchFinished:false,isExtraTime:false,isPenalties:false,userIsHome:true,selectedFormation:'4-3-3',lineup:{GK:null,DEF:[],MID:[],FWD:[]},opponentFormation:'4-3-3',opponentLineup:{GK:null,DEF:[],MID:[],FWD:[]},tactics:{attack:2,passing:2,defense:2,setpiece:1,special:0},tournamentStage:'八分之一决赛',stadium:null,weather:null,storyChoices:{}};
+var _selectedSlot=null;
+
+
+var TEAM_COLORS={portugal:'#b22222',spain:'#ffd700',france:'#002395',belgium:'#1a1a1a',argentina:'#75aadb'};
+function getTeamDotColor(teamId){return TEAM_COLORS[teamId]||'#888'}
+function getTeamColorName(teamId){var m={portugal:'红',spain:'金',france:'深蓝',belgium:'黑',argentina:'浅蓝'};return m[teamId]||'灰'}
+
+
+// World Cup atmosphere data
+var WC_ATMOSPHERE={
+  '洛杉矶':{weather:['☀️ 加州阳光','🌤️ 温暖干燥','☀️ 炎热无风'],crowd:'好莱坞明星云集观战',temp:28},
+  '迈阿密':{weather:['🌴 湿热','⛅ 海风','🌦️ 阵雨'],crowd:'拉丁风情狂欢节般的气氛',temp:32},
+  '多伦多':{weather:['🍁 凉爽','🌤️ 晴好','💨 微风'],crowd:'枫叶旗海洋中的足球盛宴',temp:22},
+  '纽约':{weather:['🗽 晴朗','🌤️ 多云','💨 大风'],crowd:'世界之都的全球焦点',temp:25},
+  '芝加哥':{weather:['🌬️ 风城大风','⛅ 凉爽','☀️ 晴好'],crowd:'五大湖区的足球热情',temp:20},
+  '墨西哥城':{weather:['🏛️ 高原阳光','⛅ 稀薄空气','☀️ 强烈紫外线'],crowd:'阿兹特克的足球圣殿',temp:24}
+};
+
+function getMatchAtmosphere(){
+  var city=G.stadium.city,data=WC_ATMOSPHERE[city]||WC_ATMOSPHERE['洛杉矶'];
+  return {weather:data.weather[Math.floor(Math.random()*data.weather.length)],crowd:data.crowd,temp:data.temp+Math.floor(Math.random()*6)};
+}
+
+
+// ===== CLEAN MODAL SYSTEM (body-append, inline-only) =====
+var _modalOverlay=null;
+function openModal(html){
+  var m=document.getElementById('modal');
+  var mc=document.getElementById('modal-content');
+  mc.innerHTML=html;
+  m.style.cssText='display:flex!important;justify-content:center!important;align-items:center!important;flex-direction:column!important;position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;background:rgba(0,0,0,.85)!important;z-index:9999!important';
+  m.classList.add('active');
+}
+function closeModal(){
+  var m=document.getElementById('modal');
+  m.style.cssText='display:none!important';
+  m.classList.remove('active');
+}
+
+function getTeam(id){return TEAMS[id]}
+function getUserTeam(){return TEAMS[G.userTeam]}
+function getOpponent(){return TEAMS[G.opponentKey]}
+
+function showScreen(id){
+  var screens=document.querySelectorAll('.screen');
+  for(var i=0;i<screens.length;i++) screens[i].classList.remove('active');
+  var el=document.getElementById('screen-'+id);
+  if(el) el.classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function notify(msg,type){
+  var d=document.createElement('div');
+  d.style.cssText='position:fixed;top:20px;right:20px;padding:15px 25px;border-radius:10px;z-index:200;font-weight:600;max-width:400px;animation:slideIn .4s ease;'+(type==='success'?'background:rgba(0,200,0,.2);border:1px solid #4caf50;color:#4caf50':type==='warning'?'background:rgba(255,150,0,.2);border:1px solid #ff9800;color:#ff9800':'background:rgba(200,0,0,.2);border:1px solid #f44336;color:#f44336');
+  d.textContent=msg;document.body.appendChild(d);
+  setTimeout(function(){d.style.opacity='0';d.style.transition='opacity .5s';setTimeout(function(){d.remove()},500)},2500);
+}
+
+function renderTeamSelect(){
+  var teams=Object.values(TEAMS),grid=document.getElementById('team-select-grid'),h='';
+  for(var i=0;i<teams.length;i++){
+    var t=teams[i];
+    h+='<div class="card team-card" onclick="selectTeam(\''+t.id+'\')">';
+    h+='<div class="flag">'+t.flag+'</div><div class="name">'+t.name+'</div>';
+    h+='<div class="rating">⭐ '+t.rating+' 综合评分</div><div class="info">'+t.desc+'</div>';
+    h+='<div style="margin-top:8px;font-size:.8em;color:#aaa"><div>✅ '+t.strength.split('，')[0]+'</div><div>⚠️ '+t.weakness.split('，')[0]+'</div></div></div>';
+  }
+  grid.innerHTML=h;
+}
+
+function selectTeam(id){
+  G.userTeam=id;
+  if(id==='portugal') G.allOpponents=['spain','belgium','france','argentina'];
+  else if(id==='spain') G.allOpponents=['portugal','france','argentina','belgium'];
+  else if(id==='france') G.allOpponents=['belgium','argentina','portugal','spain'];
+  else if(id==='belgium') G.allOpponents=['argentina','portugal','spain','france'];
+  else G.allOpponents=['france','spain','belgium','portugal'];
+  G.matchIndex=0;G.opponentKey=G.allOpponents[0];
+  G.stadium=STADIUMS[Math.floor(Math.random()*STADIUMS.length)];healInjuries();
+  var wtypes=[{c:'☀️ 晴',e:'场地干燥，球速快'},{c:'⛅ 多云',e:'舒适天气，适合比赛'},{c:'🌤️ 晴间多云',e:'微风，略有影响'},{c:'🌧️ 小雨',e:'场地湿滑，失误增多'},{c:'💨 大风',e:'长传球受影响'}];
+  var w=wtypes[Math.floor(Math.random()*wtypes.length)];
+  G.weather={temp:25+Math.floor(Math.random()*15),condition:w.c,effect:w.e};
+  initPlayerState();updateStage();startStory();
+}
+
+function healInjuries(){var team=getUserTeam();for(var i=0;i<team.p.length;i++){var p=team.p[i];if(G.playerInjuries[p.n]&&Math.random()<0.6){G.playerInjuries[p.n]=false;notify(p.nm+' 伤愈复出','success');}}}
+function initPlayerState(){
+  G.playerStamina={};G.playerInjuries={};G.playerCards={};
+  var team=getUserTeam();
+  for(var i=0;i<team.p.length;i++){
+    var p=team.p[i];
+    G.playerStamina[p.n]=95+Math.floor(Math.random()*6);
+    G.playerInjuries[p.n]=false;G.playerCards[p.n]=0;
+  }
+}
+
+function getTeamStyle(id){
+  var styles={
+    portugal:'🇵🇹 欧洲技术流 · 边路传中 · C罗领衔',
+    spain:'🇪🇸 Tiki-Taka传控 · 巴萨血脉 · 年轻风暴',
+    france:'🇫🇷 防守反击 · 速度至上 · 姆巴佩时代',
+    belgium:'🇧🇪 黄金一代 · 德布劳内魔法 · 最后一舞',
+    argentina:'🇦🇷 南美艺术 · 梅西传奇 · 卫冕冠军'
+  };
+  return styles[id]||'';
+}
+function getBracketPreview(){
+  var user=getUserTeam();
+  var path=G.allOpponents.map(function(o){var t=TEAMS[o];return t.flag+' '+t.name;});
+  var rounds=['八分之一决赛','四分之一决赛','半决赛','决赛'];
+  var s='';
+  for(var i=0;i<path.length;i++){
+    s+='<div style="margin:3px 0;font-size:.85em">'+rounds[i]+' → '+path[i]+'</div>';
+  }
+  return s;
+}
+function updateStage(){
+  var st=['八分之一决赛','四分之一决赛','半决赛','决赛','三四名决赛'];
+  G.tournamentStage=st[G.matchIndex]||'决赛';
+}
+
+function startStory(){
+  var stories=STORIES[G.userTeam];
+  var story=stories[Math.min(G.matchIndex,stories.length-1)];
+  G.currentStory=story;
+  renderStory(story);
+}
+
+function renderStory(story){
+  showScreen('story');
+  var opp=getOpponent(),team=getUserTeam();
+  var h='<div class="card" style="animation:slideUp .6s ease">';
+  h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
+  h+='<span style="font-size:2em">'+team.flag+'</span>';
+  h+='<span style="font-size:1.5em;color:#ffd700">VS</span>';
+  h+='<span style="font-size:2em">'+opp.flag+'</span>';
+  h+='<span class="stadium-badge">'+G.tournamentStage+'</span></div>';
+  h+='<h2>'+story.title+'</h2>';
+  h+='<div class="story-text">'+story.text.replace(/\\n/g,'<br>')+'</div>';
+  h+='<h3>🤔 你的选择：</h3>';
+  for(var i=0;i<story.choices.length;i++){
+    var c=story.choices[i];
+    h+='<div class="choice-btn" onclick="makeStoryChoice('+i+')">';
+    h+='<div style="font-weight:600;color:#ffd700">选项'+(i+1)+'：'+c.text+'</div>';
+    h+='<div class="effect">📊 '+c.effect+'</div></div>';
+  }
+  h+='</div>';
+  document.getElementById('story-content').innerHTML=h;
+}
+
+function makeStoryChoice(idx){
+  var story=G.currentStory,c=story.choices[idx];
+  G.storyChoices[G.matchIndex]=idx;
+  G.teamMorale=Math.min(100,Math.max(40,G.teamMorale+c.morale));
+  G.teamChemistry=Math.min(100,Math.max(40,G.teamChemistry+c.chem));
+  if(c.stats.stamina) for(var k in G.playerStamina) G.playerStamina[k]=Math.min(100,Math.max(50,G.playerStamina[k]+c.stats.stamina));
+  if(c.stats.attack!=null) G.tactics.attack=Math.min(4,Math.max(0,G.tactics.attack+(c.stats.attack||0)));
+  if(c.stats.possession) G._posBonus=(G._posBonus||0)+c.stats.possession;
+  if(c.stats.shots) G._shotsBonus=(G._shotsBonus||0)+c.stats.shots;
+  if(c.stats.heatResist) G._heatResist=c.stats.heatResist;
+  G._storyEffects=c.stats;
+  notify('选择已生效：'+c.effect,'success');
+  setTimeout(function(){startPressConference()},800);
+}
+
+function startPressConference(){
+  showScreen('press');
+  var opp=getOpponent(),team=getUserTeam();
+  var qs=[
+    {q:team.name+'队在本届世界杯的表现备受关注，您如何评价球队目前的状态？',
+     a:[{text:'我们准备得很充分，信心十足',e:'士气+3'},{text:'还有很多需要改进的地方',e:'战术准备+5'},{text:'保持谦逊，一场一场来',e:'化学+3'}]},
+    {q:opp.name+'队的核心球员状态正佳，您有针对性部署吗？',
+     a:[{text:'我们有专门的防守计划',e:'防守+5'},{text:'我们更关注自己的进攻',e:'进攻+5'},{text:'足球是团队运动',e:'化学+3'}]},
+    {q:'关于首发阵容，您能透露一些信息吗？',
+     a:[{text:'基本确定了',e:'无'},{text:'根据最后训练决定',e:'训练效果+5'},{text:'我们有26个首发级别的球员',e:'士气+5'}]}
+  ];
+  var q=qs[Math.floor(Math.random()*qs.length)];G.pressQuestion=q;
+  var h='<div class="card" style="animation:slideUp .6s ease">';
+  h+='<div class="flex-between"><div><span style="font-size:2em">'+team.flag+'</span> <strong>'+team.name+'</strong> vs <strong>'+opp.name+'</strong> <span style="font-size:2em">'+opp.flag+'</span></div><span class="stadium-badge">🏟️ '+G.stadium.name+'</span></div>';
+  h+='<div style="margin:15px 0;padding:15px;background:rgba(0,0,0,.3);border-radius:8px"><span style="color:#ff9800">📰 记者提问：</span><br><em>"'+q.q+'"</em></div>';
+  for(var i=0;i<q.a.length;i++){
+    var a=q.a[i];
+    h+='<div class="choice-btn" onclick="answerPress('+i+')"><strong>选项'+(i+1)+'：</strong>'+a.text+' <span style="color:#ffa500;margin-left:10px;font-size:.85em">('+a.e+')</span></div>';
+  }
+  h+='</div>';
+  document.getElementById('press-content').innerHTML=h;
+}
+
+function answerPress(idx){
+  var a=G.pressQuestion.a[idx];
+  if(a.e.indexOf('士气')>=0) G.teamMorale=Math.min(100,G.teamMorale+3);
+  if(a.e.indexOf('化学')>=0) G.teamChemistry=Math.min(100,G.teamChemistry+3);
+  if(a.e.indexOf('防守')>=0) G._defBonus=(G._defBonus||0)+5;
+  if(a.e.indexOf('进攻')>=0) G._atkBonus=(G._atkBonus||0)+5;
+  notify('发布会结束：'+a.e,'success');
+  setTimeout(function(){startLineup()},800);
+}
+
+// ===== LINEUP SYSTEM =====
+function getFormation(){return FORMATIONS[G.selectedFormation]}
+
+function autoFillLineup(){
+  var team=getUserTeam(),fm=getFormation();
+  var pl=team.p.filter(function(p){return !G.playerInjuries[p.n]});
+  // Position matching score
+  function matchScore(slotLabel,p){
+    if(p.ps===slotLabel) return 300;
+    if(p.ap===slotLabel) return 200;
+    var defP=['CB','RB','LB','RWB','LWB'],midP=['CDM','CAM','CM','LM','RM'],fwdP=['ST','LW','RW','SS','CF'];
+    if(slotLabel==='GK'&&p.ps==='GK') return 300;
+    if(defP.indexOf(slotLabel)>=0&&defP.indexOf(p.ps)>=0) return 100;
+    if(midP.indexOf(slotLabel)>=0&&midP.indexOf(p.ps)>=0) return 100;
+    if(fwdP.indexOf(slotLabel)>=0&&fwdP.indexOf(p.ps)>=0) return 100;
+    return 0;
+  }
+  function pickBest(slots,pool){
+    var used={},result=[];
+    for(var i=0;i<slots.length;i++){
+      var best=null,bs=-1;
+      for(var j=0;j<pool.length;j++){
+        if(used[pool[j].n]) continue;
+        var s=matchScore(slots[i].lb,pool[j])+pool[j].rt;
+        if(s>bs){bs=s;best=pool[j];}
+      }
+      if(best){used[best.n]=true;result.push(best);}
+      else result.push(null);
+    }
+    return result;
+  }
+  var gkP=pl.filter(function(p){return p.ps==='GK'}).sort(function(a,b){return b.rt-a.rt});
+  var defP=pl.filter(function(p){return['CB','RB','LB','RWB','LWB'].indexOf(p.ps)>=0}).sort(function(a,b){return b.rt-a.rt});
+  var midP=pl.filter(function(p){return['CDM','CAM','CM','LM','RM'].indexOf(p.ps)>=0}).sort(function(a,b){return b.rt-a.rt});
+  var fwdP=pl.filter(function(p){return['ST','LW','RW','SS','CF'].indexOf(p.ps)>=0}).sort(function(a,b){return b.rt-a.rt});
+  var slots=fm.slots;
+  G.lineup.GK=gkP[0]||null;
+  G.lineup.DEF=pickBest(slots.DEF,defP.concat(midP));
+  G.lineup.MID=pickBest(slots.MID,midP.concat(defP).concat(fwdP));
+  G.lineup.FWD=pickBest(slots.FWD,fwdP.concat(midP));
+  // Fill any remaining nulls with best available
+  var usedNums={};if(G.lineup.GK)usedNums[G.lineup.GK.n]=true;
+  G.lineup.DEF.forEach(function(p){if(p)usedNums[p.n]=true});
+  G.lineup.MID.forEach(function(p){if(p)usedNums[p.n]=true});
+  G.lineup.FWD.forEach(function(p){if(p)usedNums[p.n]=true});
+  var allPool=pl.filter(function(p){return !usedNums[p.n]}).sort(function(a,b){return b.rt-a.rt});
+  function fillNulls(arr,slots){
+    for(var i=0;i<slots.length;i++){
+      if(i<arr.length&&arr[i]) continue;
+      while(arr.length<=i) arr.push(null);
+      for(var j=0;j<allPool.length;j++){
+        if(!usedNums[allPool[j].n]){usedNums[allPool[j].n]=true;arr[i]=allPool[j];break;}
+      }
+    }
+  }
+  fillNulls(G.lineup.DEF,slots.DEF);
+  fillNulls(G.lineup.MID,slots.MID);
+  fillNulls(G.lineup.FWD,slots.FWD);
+}
+
+function getOpponentBoost(){return G.matchIndex*3;}
+function autoFillOpponent(){
+  var opp=getOpponent(),fkeys=Object.keys(FORMATIONS);
+  G.opponentFormation=fkeys[Math.floor(Math.random()*fkeys.length)];
+  var fm=FORMATIONS[G.opponentFormation];
+  var pl=[].concat(opp.p).sort(function(a,b){return b.rt-a.rt});
+  var gk=pl.filter(function(p){return p.ps==='GK'});
+  var def=pl.filter(function(p){return['CB','RB','LB','RWB','LWB'].indexOf(p.ps)>=0}).sort(function(a,b){return b.rt-a.rt});
+  var mid=pl.filter(function(p){return['CDM','CAM','CM','LM','RM'].indexOf(p.ps)>=0}).sort(function(a,b){return b.rt-a.rt});
+  var fwd=pl.filter(function(p){return['ST','LW','RW','SS','CF'].indexOf(p.ps)>=0}).sort(function(a,b){return b.rt-a.rt});
+  var boost=getOpponentBoost();G.opponentLineup.GK=gk[0]?{n:gk[0].n,nm:gk[0].nm,ps:gk[0].ps,rt:gk[0].rt+boost,cl:gk[0].cl,lg:gk[0].lg}:pl[0];
+  G.opponentLineup.DEF=def.slice(0,fm.slots.DEF.length).map(function(p){return{n:p.n,nm:p.nm,ps:p.ps,rt:p.rt+boost,cl:p.cl,lg:p.lg}});
+  G.opponentLineup.MID=mid.slice(0,fm.slots.MID.length).map(function(p){return{n:p.n,nm:p.nm,ps:p.ps,rt:p.rt+boost,cl:p.cl,lg:p.lg}});
+  G.opponentLineup.FWD=fwd.slice(0,fm.slots.FWD.length).map(function(p){return{n:p.n,nm:p.nm,ps:p.ps,rt:p.rt+boost,cl:p.cl,lg:p.lg}});
+  while(G.opponentLineup.DEF.length<fm.slots.DEF.length) G.opponentLineup.DEF.push(mid[G.opponentLineup.DEF.length]||def[0]);
+  while(G.opponentLineup.MID.length<fm.slots.MID.length) G.opponentLineup.MID.push(def[fm.slots.DEF.length+G.opponentLineup.MID.length]||mid[0]);
+  while(G.opponentLineup.FWD.length<fm.slots.FWD.length) G.opponentLineup.FWD.push(mid[fm.slots.MID.length+G.opponentLineup.FWD.length]||fwd[0]);
+}
+
+function startLineup(){
+  showScreen('lineup');
+  // Initialize empty lineup
+  G.lineup={GK:null,DEF:[],MID:[],FWD:[]};
+  _selectedSlot=null;
+  autoFillOpponent();
+  renderLineupScreen();
+}
+
+function changeFormation(key){
+  // Save current players
+  var pool=[];
+  if(G.lineup.GK) pool.push(G.lineup.GK);
+  G.lineup.DEF.forEach(function(p){if(p)pool.push(p)});
+  G.lineup.MID.forEach(function(p){if(p)pool.push(p)});
+  G.lineup.FWD.forEach(function(p){if(p)pool.push(p)});
+  // Change formation
+  G.selectedFormation=key;
+  // Rebuild lineup with saved players
+  G.lineup={GK:null,DEF:[],MID:[],FWD:[]};
+  var fm=getFormation();
+  // Find GK
+  for(var i=0;i<pool.length;i++){if(pool[i].ps==='GK'){G.lineup.GK=pool[i];pool.splice(i,1);break;}}
+  // Assign to DEF slots by position match
+  var defSlots=fm.slots.DEF,midSlots=fm.slots.MID,fwdSlots=fm.slots.FWD;
+  function assignToSlots(slots,arr){
+    var result=[],used={};
+    for(var i=0;i<slots.length;i++){
+      var best=null,bs=-1,bj=-1;
+      for(var j=0;j<arr.length;j++){
+        if(used[j]) continue;
+        var s=(arr[j].ps===slots[i].lb?300:arr[j].ap===slots[i].lb?200:100)+arr[j].rt;
+        if(s>bs){bs=s;best=arr[j];bj=j;}
+      }
+      if(best&&bj>=0){used[bj]=true;result.push(best);}
+      else result.push(null);
+    }
+    return {result:result,used:used};
+  }
+  var defAssign=assignToSlots(defSlots,pool);
+  G.lineup.DEF=defAssign.result;
+  var remaining=[];
+  for(var i=0;i<pool.length;i++){if(!defAssign.used[i]) remaining.push(pool[i]);}
+  var midAssign=assignToSlots(midSlots,remaining);
+  G.lineup.MID=midAssign.result;
+  remaining=[];
+  for(var i=0;i<pool.length;i++){if(!defAssign.used[i]&&!midAssign.used[i]) remaining.push(pool[i]);}
+  var fwdAssign=assignToSlots(fwdSlots,remaining);
+  G.lineup.FWD=fwdAssign.result;
+  // Auto-fill remaining nulls
+  var team=getUserTeam();
+  var allAvail=team.p.filter(function(p){return !G.playerInjuries[p.n]});
+  var usedNums={};if(G.lineup.GK)usedNums[G.lineup.GK.n]=true;
+  G.lineup.DEF.forEach(function(p){if(p)usedNums[p.n]=true});
+  G.lineup.MID.forEach(function(p){if(p)usedNums[p.n]=true});
+  G.lineup.FWD.forEach(function(p){if(p)usedNums[p.n]=true});
+  var avail=allAvail.filter(function(p){return !usedNums[p.n]}).sort(function(a,b){return b.rt-a.rt});
+  function fillNull(arr,slots){
+    for(var i=0;i<slots.length;i++){
+      if(i<arr.length&&arr[i]) continue;
+      while(arr.length<=i) arr.push(null);
+      if(avail.length>0){arr[i]=avail.shift();}
+    }
+  }
+  fillNull(G.lineup.DEF,defSlots);
+  fillNull(G.lineup.MID,midSlots);
+  fillNull(G.lineup.FWD,fwdSlots);
+  if(!G.lineup.GK){var gks=allAvail.filter(function(p){return p.ps==='GK'});if(gks.length)G.lineup.GK=gks[0];}
+  renderLineupScreen();
+}
+
+function renderLineupScreen(){
+  var team=getUserTeam(),opp=getOpponent(),fm=getFormation();
+  var h='';
+  // Header
+  h+='<div class="card"><div class="flex-between"><div><span style="font-size:2em">'+team.flag+'</span> <strong>'+team.name+'</strong></div>';
+  h+='<span class="stadium-badge">VS '+opp.name+' '+opp.flag+'</span>';
+  h+='<span class="stadium-badge">🏟️ '+G.stadium.name+' ('+G.stadium.cap+'座)</span></div>';
+  h+='<div style="color:#aaa;font-size:.9em;margin-top:5px">'+G.tournamentStage+' · '+G.weather.condition+' '+G.weather.temp+'°C</div>';h+='<div style="margin-top:8px;padding:8px;background:rgba(255,215,0,.05);border-radius:6px;font-size:.8em;color:#aaa">📋 晋级路线：'+getBracketPreview()+'</div></div>';
+
+  // Formation selector
+  h+='<div style="margin:10px 0"><h3>📐 阵型选择</h3><div style="display:flex;flex-wrap:wrap;gap:5px">';
+  var fkeys=Object.keys(FORMATIONS);
+  for(var i=0;i<fkeys.length;i++){
+    var k=fkeys[i],fm=FORMATIONS[k];
+    h+='<span class="tactic-chip'+(G.selectedFormation===k?' active':'')+'" onclick="changeFormation(\''+k+'\')" style="cursor:pointer">'+fm.nm+'</span>';
+  }
+  h+='<span class="tactic-chip" style="background:rgba(255,215,0,.1);border-color:#ffd700;cursor:pointer" onclick="autoFillLineup();renderLineupScreen()">🤖 AI自动排阵</span>';
+  h+='</div></div>';
+
+  // Pitch + Tactics side by side
+  h+='<div style="display:flex;gap:15px;flex-wrap:wrap">';
+  h+='<div style="flex:1;min-width:350px"><h3>🏟️ 球场预览</h3>';
+  h+='<div class="pitch" style="min-height:420px;position:relative" id="lineup-pitch"></div></div>';
+  h+='<div style="width:300px"><h3>⚙️ 战术设置</h3>'+renderTacticsHTML()+'</div>';
+  h+='</div>';
+
+  // Starting lineup + Bench
+  h+='<div style="display:flex;gap:15px;flex-wrap:wrap;margin-top:15px">';
+  h+='<div style="flex:1;min-width:250px"><h3>👥 首发阵容</h3><div id="lineup-starters"></div></div>';
+  h+='<div style="flex:1;min-width:250px"><h3>🔄 替补席 <span style="font-size:.7em;color:#aaa">(点击球员加入首发)</span></h3><div id="lineup-bench"></div></div>';
+  h+='</div>';
+
+  // Start button
+  h+='<div class="flex-center" style="margin-top:20px"><button class="btn gold" onclick="startMatch()" style="font-size:1.2em;padding:15px 50px">⚽ 开始比赛</button></div>';
+
+  document.getElementById('lineup-content').innerHTML=h;
+  // Render pitch and player lists
+  setTimeout(function(){renderLineupPitch();renderStartersList();renderBenchList()},50);
+}
+
+function applyPreset(name){if(name==='attack'){G.tactics.attack=4;G.tactics.passing=3;G.tactics.defense=0;G.tactics.setpiece=1}else if(name==='defense'){G.tactics.attack=0;G.tactics.passing=0;G.tactics.defense=4;G.tactics.setpiece=0}else if(name==='balanced'){G.tactics.attack=2;G.tactics.passing=2;G.tactics.defense=2;G.tactics.setpiece=2}else if(name==='tikitaka'){G.tactics.attack=2;G.tactics.passing=0;G.tactics.defense=1;G.tactics.special=0}else if(name==='counter'){G.tactics.attack=3;G.tactics.passing=3;G.tactics.defense=1;G.tactics.special=1};notify('战术预设已应用','success');renderLineupScreen();}
+function renderTacticsHTML(){
+  var h='';
+  h+='<div style="margin-bottom:8px"><span style="font-size:.8em;color:#aaa">快捷预设：</span>';h+='<button class="btn small" onclick="applyPreset(\'attack\')" style="padding:3px 8px;font-size:.7em">⚔️全力猛攻</button>';h+='<button class="btn small" onclick="applyPreset(\'balanced\')" style="padding:3px 8px;font-size:.7em">⚖️均衡</button>';h+='<button class="btn small" onclick="applyPreset(\'defense\')" style="padding:3px 8px;font-size:.7em">🛡️铁桶阵</button>';h+='<button class="btn small" onclick="applyPreset(\'tikitaka\')" style="padding:3px 8px;font-size:.7em">🔄传控</button>';h+='<button class="btn small" onclick="applyPreset(\'counter\')" style="padding:3px 8px;font-size:.7em">⚡防反</button></div>';h+='<div class="slider-group"><label>⚔️ 进攻倾向：<strong id="atk-label">'+TACTICS.attack[G.tactics.attack]+'</strong></label>';
+  h+='<input type="range" min="0" max="4" value="'+G.tactics.attack+'" oninput="G.tactics.attack=parseInt(this.value);document.getElementById(\'atk-label\').textContent=TACTICS.attack[G.tactics.attack]"></div>';
+  h+='<div class="slider-group"><label>🎯 传球风格：<strong id="pass-label">'+TACTICS.passing[G.tactics.passing]+'</strong></label>';
+  h+='<input type="range" min="0" max="4" value="'+G.tactics.passing+'" oninput="G.tactics.passing=parseInt(this.value);document.getElementById(\'pass-label\').textContent=TACTICS.passing[G.tactics.passing]"></div>';
+  h+='<div class="slider-group"><label>🛡️ 防守策略：<strong id="def-label">'+TACTICS.defense[G.tactics.defense]+'</strong></label>';
+  h+='<input type="range" min="0" max="4" value="'+G.tactics.defense+'" oninput="G.tactics.defense=parseInt(this.value);document.getElementById(\'def-label\').textContent=TACTICS.defense[G.tactics.defense]"></div>';
+  h+='<div class="slider-group"><label>🎪 定位球：<strong id="sp-label">'+TACTICS.setpiece[G.tactics.setpiece]+'</strong></label>';
+  h+='<input type="range" min="0" max="4" value="'+G.tactics.setpiece+'" oninput="G.tactics.setpiece=parseInt(this.value);document.getElementById(\'sp-label\').textContent=TACTICS.setpiece[G.tactics.setpiece]"></div>';
+  h+='<div class="slider-group"><label>🏷️ 特殊战术：</label><select onchange="G.tactics.special=parseInt(this.value)" style="width:100%">';
+  for(var i=0;i<TACTICS.special.length;i++){
+    h+='<option value="'+i+'"'+(G.tactics.special===i?' selected':'')+'>'+TACTICS.special[i]+'</option>';
+  }
+  h+='</select></div>';
+  h+='<div style="margin-top:10px;font-size:.85em;color:#aaa"><div>📊 球队士气：'+barStr(G.teamMorale)+' '+G.teamMorale+'</div>';
+  h+='<div>🤝 球队化学：'+barStr(G.teamChemistry)+' '+G.teamChemistry+'</div></div>';
+  return h;
+}
+
+function barStr(val){
+  var s='',n=Math.round(val/10);
+  for(var i=0;i<10;i++) s+=i<n?'█':'░';
+  return s;
+}
+
+// ===== PITCH RENDERING =====
+function renderLineupPitch(){
+  var pitch=document.getElementById('lineup-pitch');if(!pitch)return;
+  var fm=getFormation(),h='';
+  h+='<div class="watermark">'+getUserTeam().name+'</div>';
+
+  // Render each position
+  var slots=fm.slots;
+  // GK
+  var gkSlot=slots.GK[0];
+  h+=renderPitchSlot(G.lineup.GK,gkSlot,'GK',0);
+
+  // DEF
+  for(var i=0;i<slots.DEF.length;i++){
+    h+=renderPitchSlot((i<G.lineup.DEF.length?G.lineup.DEF[i]:null),slots.DEF[i],'DEF',i);
+  }
+  // MID
+  for(var i=0;i<slots.MID.length;i++){
+    h+=renderPitchSlot((i<G.lineup.MID.length?G.lineup.MID[i]:null),slots.MID[i],'MID',i);
+  }
+  // FWD
+  for(var i=0;i<slots.FWD.length;i++){
+    h+=renderPitchSlot((i<G.lineup.FWD.length?G.lineup.FWD[i]:null),slots.FWD[i],'FWD',i);
+  }
+  pitch.innerHTML=h;
+}
+
+function renderPitchSlot(player,pos,type,idx){
+  var x=pos.x-4,y=pos.y-3,lb=pos.lb||type;
+  if(player){
+    var inj=G.playerInjuries[player.n]?' injured':'';
+    var card=G.playerCards[player.n]>0?' booked':'';
+    var nm=player.nm.length>5?player.nm.slice(0,5):player.nm;
+    return '<div class="formation-player home'+inj+card+'" style="left:'+x+'%;top:'+y+'%;cursor:pointer" onclick="clickFilledSlot('+player.n+',\''+type+'\','+idx+')" title="'+player.nm+' - '+player.ps+' ('+player.rt+')"><div class="dot"></div><div class="p-name">'+nm+'</div><div class="p-rating">'+player.rt+'</div></div>';
+  }
+  // Empty slot
+  return '<div class="formation-player home" style="left:'+x+'%;top:'+y+'%;cursor:pointer" onclick="clickSlot(\''+type+'\','+idx+')" title="点击选择 '+lb+'"><div class="dot" style="background:rgba(255,255,255,.15)!important;border:2px dashed rgba(255,215,0,.5)"></div><div class="p-name" style="color:#ffd700;font-size:.65em">+ '+lb+'</div></div>';
+}
+
+// ===== CLICK HANDLERS =====
+function clickSlot(type,idx){
+  _selectedSlot={type:type,idx:idx,hasPlayer:false};
+  var lb='';
+  var fm=getFormation();
+  if(type==='GK') lb=fm.slots.GK[0].lb;
+  else lb=fm.slots[type][idx].lb;
+  notify('已选中 '+lb+' 位置，请从替补席点击球员加入','warning');
+  // Highlight the slot
+  highlightSelectedSlot();
+}
+
+function clickFilledSlot(pNum,type,idx){
+  _selectedSlot={type:type,idx:idx,hasPlayer:true,oldNum:pNum};
+  var team=getUserTeam();
+  var p=team.p.find(function(pl){return pl.n===pNum});
+  var nm=p?p.nm:'球员';
+  notify('已选中 '+nm+'（点击替补球员替换，或点击其他位置取消）','warning');
+  highlightSelectedSlot();
+}
+
+function highlightSelectedSlot(){
+  // Visual feedback - briefly flash the bench section
+  var bench=document.getElementById('lineup-bench');
+  if(bench){bench.style.transition='all .2s';bench.style.background='rgba(255,215,0,.1)';setTimeout(function(){bench.style.background=''},500);}
+}
+
+function clickBenchPlayer(pNum){
+  if(!_selectedSlot){notify('请先在球场上点击一个位置或球员','warning');return;}
+  var team=getUserTeam();
+  var player=team.p.find(function(p){return p.n===pNum});
+  if(!player) return;
+  var s=_selectedSlot;
+
+  // Check if player is already in lineup
+  var alreadyIn=false;
+  if(G.lineup.GK&&G.lineup.GK.n===pNum) alreadyIn=true;
+  G.lineup.DEF.forEach(function(p){if(p&&p.n===pNum) alreadyIn=true});
+  G.lineup.MID.forEach(function(p){if(p&&p.n===pNum) alreadyIn=true});
+  G.lineup.FWD.forEach(function(p){if(p&&p.n===pNum) alreadyIn=true});
+  if(alreadyIn&&!s.hasPlayer){notify('该球员已在首发阵容中！','warning');return;}
+  // Also check: if replacing, the new player cannot already be in another position
+  if(alreadyIn&&s.hasPlayer){notify('该球员已在首发阵容中，不能移动到其他位置','warning');return;}
+
+  // If replacing, put old player back on bench (no-op, just swap)
+  var oldName='';
+  if(s.hasPlayer&&s.oldNum){
+    var oldP=team.p.find(function(p){return p.n===s.oldNum});
+    if(oldP) oldName=oldP.nm;
+  }
+
+  // Place player in slot
+  if(s.type==='GK') G.lineup.GK=player;
+  else if(s.type==='DEF'){
+    while(G.lineup.DEF.length<=s.idx) G.lineup.DEF.push(null);
+    G.lineup.DEF[s.idx]=player;
+  }else if(s.type==='MID'){
+    while(G.lineup.MID.length<=s.idx) G.lineup.MID.push(null);
+    G.lineup.MID[s.idx]=player;
+  }else if(s.type==='FWD'){
+    while(G.lineup.FWD.length<=s.idx) G.lineup.FWD.push(null);
+    G.lineup.FWD[s.idx]=player;
+  }
+
+  _selectedSlot=null;
+  if(oldName){
+    notify(oldName+' ↓ '+player.nm+' ↑ 替换完成','success');
+  } else {
+    notify(player.nm+' ↑ 加入首发！','success');
+  }
+  renderLineupPitch();renderStartersList();renderBenchList();
+}
+
+// ===== PLAYER LISTS =====
+function renderStartersList(){
+  var c=document.getElementById('lineup-starters');if(!c)return;
+  var all=[];
+  if(G.lineup.GK) all.push({p:G.lineup.GK,slot:'GK',idx:0});
+  G.lineup.DEF.forEach(function(p,i){all.push({p:p,slot:'DEF',idx:i})});
+  G.lineup.MID.forEach(function(p,i){all.push({p:p,slot:'MID',idx:i})});
+  G.lineup.FWD.forEach(function(p,i){all.push({p:p,slot:'FWD',idx:i})});
+  var h='';
+  for(var i=0;i<all.length;i++){
+    var item=all[i],p=item.p;
+    if(!p){h+='<div class="player-row" style="opacity:.4"><span style="color:#ffd700">--</span><span>空位</span><span style="color:#aaa;font-size:.75em">点击球场虚线框选人</span></div>';continue;}
+    var posCls=p.ps==='GK'?'pos-gk':['CB','RB','LB','RWB','LWB'].indexOf(p.ps)>=0?'pos-def':['CDM','CAM','CM','LM','RM'].indexOf(p.ps)>=0?'pos-mid':'pos-fwd';
+    var stCls='stamina-'+(G.playerStamina[p.n]>70?'high':G.playerStamina[p.n]>40?'mid':'low');
+    h+='<div class="player-row" style="cursor:pointer" onclick="clickFilledSlot('+p.n+',\''+item.slot+'\','+item.idx+')">';
+    h+='<span style="width:25px;color:#ffd700">'+p.n+'</span><span>'+p.nm+'</span>';
+    h+='<span class="pos-badge '+posCls+'">'+p.ps+'</span>';
+    h+='<span style="color:#ffd700">⭐'+p.rt+'</span>';
+    h+='<div class="stamina-bar"><div class="stamina-fill '+stCls+'" style="width:'+G.playerStamina[p.n]+'%"></div></div>';
+    h+='<span style="font-size:.75em;color:#aaa">'+G.playerStamina[p.n]+'</span></div>';
+  }
+  c.innerHTML=h;
+}
+
+function renderBenchList(){
+  var c=document.getElementById('lineup-bench');if(!c)return;
+  var team=getUserTeam();
+  var usedNums={};if(G.lineup.GK)usedNums[G.lineup.GK.n]=true;
+  G.lineup.DEF.forEach(function(p){if(p)usedNums[p.n]=true});
+  G.lineup.MID.forEach(function(p){if(p)usedNums[p.n]=true});
+  G.lineup.FWD.forEach(function(p){if(p)usedNums[p.n]=true});
+  var bench=team.p.filter(function(p){return !usedNums[p.n]&&!G.playerInjuries[p.n]});
+  var h='';
+  for(var i=0;i<bench.length;i++){
+    var p=bench[i];
+    var posCls=p.ps==='GK'?'pos-gk':['CB','RB','LB','RWB','LWB'].indexOf(p.ps)>=0?'pos-def':['CDM','CAM','CM','LM','RM'].indexOf(p.ps)>=0?'pos-mid':'pos-fwd';
+    var stCls='stamina-'+(G.playerStamina[p.n]>70?'high':G.playerStamina[p.n]>40?'mid':'low');
+    h+='<div class="player-row" style="cursor:pointer" onclick="clickBenchPlayer('+p.n+')">';
+    h+='<span style="width:25px;color:#ffd700">'+p.n+'</span><span>'+p.nm+'</span>';
+    h+='<span class="pos-badge '+posCls+'">'+p.ps+'</span>';
+    h+='<span style="color:#ffd700">⭐'+p.rt+'</span>';
+    h+='<div class="stamina-bar"><div class="stamina-fill '+stCls+'" style="width:'+G.playerStamina[p.n]+'%"></div></div></div>';
+  }
+  if(bench.length===0) h='<div style="color:#aaa;text-align:center;padding:20px">所有可用的球员已加入首发</div>';
+  c.innerHTML=h;
+}
+
+function startMatch(){
+  // Validate lineup - auto-fill if needed
+  var fm=getFormation();
+  if(!G.lineup.GK || G.lineup.DEF.filter(function(p){return !!p}).length<fm.slots.DEF.length || G.lineup.MID.filter(function(p){return !!p}).length<fm.slots.MID.length || G.lineup.FWD.filter(function(p){return !!p}).length<fm.slots.FWD.length){
+    notify('阵容不完整，已自动补填空缺位置','warning');
+    autoFillLineup();
+  }
+  // Ensure opponent is ready
+  if(!G.opponentLineup.GK || G.opponentLineup.DEF.length===0) autoFillOpponent();
+
+  showScreen('match');
+  G.matchMinute=0;G.matchHomeScore=0;G.matchAwayScore=0;G.matchHalf=1;G.matchStoppageTime=0;
+  G.matchStarted=true;G.matchPaused=false;G.matchFinished=false;G.isExtraTime=false;G.isPenalties=false;
+  if(!G.careerStats) G.careerStats={};
+  G.matchEvents=[];G.playerStats={};G.playerMinutes={};G.userIsHome=Math.random()>0.5;G._subsLeft=5;G._subsUsed=[];
+  // Initialize minutes for all starting players
+  var initMin=[];if(G.lineup.GK)initMin.push(G.lineup.GK.n);G.lineup.DEF.forEach(function(p){if(p)initMin.push(p.n)});G.lineup.MID.forEach(function(p){if(p)initMin.push(p.n)});G.lineup.FWD.forEach(function(p){if(p)initMin.push(p.n)});
+  for(var mi=0;mi<initMin.length;mi++){G.playerMinutes[initMin[mi]]={start:0,end:90,subbed:false}};G._wb1Done=false;G._wb2Done=false;
+  G._penWinner=null;G._matchTimer=null;G.matchSpeed=240;G.playerStats={};
+  updateScoreboard();renderMatchPitch();
+  document.getElementById('match-events').innerHTML='';
+  document.getElementById('match-actions').innerHTML=renderMatchActions();
+  var atm=getMatchAtmosphere();
+  addMatchEvent('info','🏟️ '+G.stadium.name+' · '+atm.weather+' '+atm.temp+'°C');
+  addMatchEvent('info','📢 '+atm.crowd);
+  addMatchEvent('info','🎵 国歌奏响，全场肃立——2026世界杯'+G.tournamentStage+'！');
+  addMatchEvent('info',getTeamStyle(G.userTeam));
+  addMatchEvent('info','⚔️ 对手风格：'+getTeamStyle(G.opponentKey));
+  if(G.userIsHome){addMatchEvent('info','🏠 主场优势！球迷助威声震耳欲聋');G.teamMorale=Math.min(100,G.teamMorale+5);}
+  addMatchEvent('info','🪙 '+(G.userIsHome?getUserTeam().name:getOpponent().name)+' 先开球');
+  simulateMatch();
+}
+
+function addMatchEvent(type,text){
+  G.matchEvents.push({minute:G.matchMinute,type:type,text:text});
+  var log=document.getElementById('match-events');if(!log)return;
+  var d=document.createElement('div');
+  d.className='event '+(type==='goal'?'goal':type==='card'?'card-event':type==='sub'?'sub':'info-event');
+  d.innerHTML='<span style="color:#ffd700;font-weight:600">'+G.matchMinute+"'</span> "+text;
+  log.prepend(d);if(log.children.length>50)log.removeChild(log.lastChild);
+}
+
+function updateScoreboard(){
+  var team=getUserTeam(),opp=getOpponent();
+  // Always: LEFT = user team, RIGHT = opponent (match post-match display)
+  document.getElementById('match-home-name').textContent=team.name;
+  document.getElementById('match-away-name').textContent=opp.name;
+  document.getElementById('match-home-score').textContent=G.userIsHome?G.matchHomeScore:G.matchAwayScore;
+  document.getElementById('match-away-score').textContent=G.userIsHome?G.matchAwayScore:G.matchHomeScore;
+  var dm=G.matchMinute>90?G.matchMinute:Math.min(G.matchMinute,90);
+  document.getElementById('match-time').textContent=String(dm).padStart(2,'0')+':00';
+  document.getElementById('match-half').textContent=G.isPenalties?'⚽ 点球大战':G.isExtraTime?(G.matchHalf>2?'加时赛下半场':'加时赛上半场'):(G.matchHalf===1?'上半场':'下半场');
+  document.getElementById('match-stadium').textContent='🏟️ '+G.stadium.name+' ('+G.stadium.cap+'座)';
+  document.getElementById('match-temp').textContent=G.weather.condition+' '+G.weather.temp+'°C';
+  var hs=G.matchEvents.filter(function(e){return e.type==='goal'&&e.team==='home'}).length+Math.floor(Math.random()*3);
+  var as=G.matchEvents.filter(function(e){return e.type==='goal'&&e.team==='away'}).length+Math.floor(Math.random()*3);
+  document.getElementById('match-shots').textContent='射门 '+(G.userIsHome?hs:as)+' - '+(G.userIsHome?as:hs);
+  var up=45+(G._posBonus||0)+Math.floor(Math.random()*15);
+  document.getElementById('match-possession').textContent='控球率 '+up+'% - '+(100-up)+'%';
+}
+
+function renderMatchPitch(){
+  var pitch=document.getElementById('match-pitch');if(!pitch)return;
+  var fm=getFormation(),ofm=FORMATIONS[G.opponentFormation];
+  // LEFT = user always, RIGHT = opponent always
+  var leftTeam=getUserTeam(),rightTeam=getOpponent();
+  var leftLineup=G.lineup,rightLineup=G.opponentLineup;
+  var leftForm=fm,rightForm=ofm;
+  var leftColor=getTeamDotColor(leftTeam.id);
+  var rightColor=getTeamDotColor(rightTeam.id);
+
+  // Build two side-by-side rectangles - LEFT=user, RIGHT=opponent
+  var h='<div style=\"display:flex;height:100%;gap:4px\">';
+
+  // === LEFT: USER TEAM ===
+  h+='<div style=\"flex:1;background:linear-gradient(180deg,rgba(0,0,0,.3),rgba(0,30,0,.3));border:2px solid rgba(255,215,0,.3);border-radius:12px;position:relative;min-height:420px\">';
+  h+='<div style=\"position:absolute;top:2px;left:50%;transform:translateX(-50%);color:#ffd700;font-size:.7em;z-index:3;background:rgba(0,0,0,.6);padding:2px 8px;border-radius:8px;white-space:nowrap\">'+leftTeam.flag+' '+leftTeam.name+'</div>';
+  h+='<div style=\"position:absolute;top:2%;left:8%;width:84%;height:96%;border:1px solid rgba(255,255,255,.1);border-radius:4px\"></div>';
+  h+='<div style=\"position:absolute;top:50%;left:8%;width:84%;height:1px;background:rgba(255,255,255,.15)\"></div>';
+  h+='<div style=\"position:absolute;top:50%;left:50%;width:30px;height:30px;border:1px solid rgba(255,255,255,.15);border-radius:50%;transform:translate(-50%,-50%)\"></div>';
+  h+=renderTeamRect(leftLineup,leftForm,leftTeam.id,leftColor);
+  h+='</div>';
+
+  // Divider
+  h+='<div style=\"display:flex;align-items:center;color:rgba(255,255,255,.4);font-size:1.2em;font-weight:900\">VS</div>';
+
+  // === RIGHT: OPPONENT TEAM ===
+  h+='<div style=\"flex:1;background:linear-gradient(180deg,rgba(0,0,0,.3),rgba(30,0,0,.3));border:2px solid rgba(255,255,255,.15);border-radius:12px;position:relative;min-height:420px\">';
+  h+='<div style=\"position:absolute;top:2px;left:50%;transform:translateX(-50%);color:#ccc;font-size:.7em;z-index:3;background:rgba(0,0,0,.6);padding:2px 8px;border-radius:8px;white-space:nowrap\">'+rightTeam.flag+' '+rightTeam.name+'</div>';
+  h+='<div style=\"position:absolute;top:2%;left:8%;width:84%;height:96%;border:1px solid rgba(255,255,255,.1);border-radius:4px\"></div>';
+  h+='<div style=\"position:absolute;top:50%;left:8%;width:84%;height:1px;background:rgba(255,255,255,.15)\"></div>';
+  h+='<div style=\"position:absolute;top:50%;left:50%;width:30px;height:30px;border:1px solid rgba(255,255,255,.15);border-radius:50%;transform:translate(-50%,-50%)\"></div>';
+  h+=renderTeamRect(rightLineup,rightForm,rightTeam.id,rightColor);
+  h+='</div>';
+
+  h+='</div>';
+  pitch.innerHTML=h;
+}
+
+function renderTeamRect(lineup,form,teamId,color){
+  var r='';
+  function dot(p,pos){
+    if(!p)return'';
+    var card='';if(G.playerCards[p.n]>=2)card='<span style=\"position:absolute;top:-4px;right:-4px;font-size:9px\">🟥</span>';else if(G.playerCards[p.n]>=1)card='<span style=\"position:absolute;top:-4px;right:-4px;font-size:9px\">🟨</span>';
+    var nm=p.nm.length>4?p.nm.slice(0,4):p.nm;
+    return'<div style=\"position:absolute;left:'+(pos.x-5)+'%;top:'+(pos.y-4)+'%;text-align:center;z-index:3;transform:translate(-50%,-50%)\">'+
+      '<div style=\"width:28px;height:28px;border-radius:50%;background:'+color+';border:2px solid rgba(255,255,255,.7);margin:0 auto;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:.7em;text-shadow:0 1px 2px rgba(0,0,0,.8);box-shadow:0 0 8px '+color+';position:relative\">'+p.n+card+'</div>'+
+      '<div style=\"color:#fff;font-size:.55em;text-shadow:0 1px 2px rgba(0,0,0,.9);white-space:nowrap;margin-top:1px\">'+nm+'</div>'+
+      '<div style=\"color:#ffd700;font-size:.5em\">⭐'+p.rt+'</div></div>';
+  }
+  if(lineup.GK)r+=dot(lineup.GK,form.slots.GK[0]);
+  for(var i=0;i<form.slots.DEF.length;i++){if(i<lineup.DEF.length&&lineup.DEF[i])r+=dot(lineup.DEF[i],form.slots.DEF[i]);}
+  for(var i=0;i<form.slots.MID.length;i++){if(i<lineup.MID.length&&lineup.MID[i])r+=dot(lineup.MID[i],form.slots.MID[i]);}
+  for(var i=0;i<form.slots.FWD.length;i++){if(i<lineup.FWD.length&&lineup.FWD[i])r+=dot(lineup.FWD[i],form.slots.FWD[i]);}
+  return r;
+}
+
+function renderMatchActions(){
+  var h='';
+  // Speed controls
+  h+='<div class="card" style="padding:8px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:.8em;color:#aaa">⏱️ 速度:</span>';
+  var speeds=[{v:480,l:'0.5x'},{v:240,l:'1x'},{v:100,l:'2x'},{v:30,l:'5x'}];
+  for(var i=0;i<speeds.length;i++){
+    h+='<button class="speed-btn'+(G.matchSpeed===speeds[i].v?' active':'')+'" onclick="setSpeed('+speeds[i].v+')">'+speeds[i].l+'</button>';
+  }
+  h+='<button class="speed-btn" onclick="togglePause()" style="margin-left:auto">'+(G.matchPaused?'▶️ 继续':'⏸️ 暂停')+'</button></div></div>';
+  // Coach actions
+  h+='<div class="card" style="padding:8px"><h3 style="margin-top:0;font-size:.9em">🎮 教练操作</h3>';
+  h+='<div style="display:flex;gap:3px;flex-wrap:wrap">';
+  h+='<button class="btn small" onclick="quickSub()">🔄 换人('+G._subsLeft+')</button>';
+  h+='<button class="btn small" onclick="changeTactic()">⚙️ 战术</button></div></div>';
+  return h;
+}
+function setSpeed(v){G.matchSpeed=v;document.getElementById('match-actions').innerHTML=renderMatchActions();}
+function togglePause(){G.matchPaused=!G.matchPaused;document.getElementById('match-actions').innerHTML=renderMatchActions();}
+
+function calcGoalProb(){
+  var uFwd=0,uMid=0,oFwd=0,oMid=0;
+  for(var i=0;i<G.lineup.FWD.length;i++){if(G.lineup.FWD[i])uFwd+=G.lineup.FWD[i].rt}
+  for(var i=0;i<G.lineup.MID.length;i++){if(G.lineup.MID[i])uMid+=G.lineup.MID[i].rt}
+  for(var i=0;i<G.opponentLineup.FWD.length;i++){if(G.opponentLineup.FWD[i])oFwd+=G.opponentLineup.FWD[i].rt}
+  for(var i=0;i<G.opponentLineup.MID.length;i++){if(G.opponentLineup.MID[i])oMid+=G.opponentLineup.MID[i].rt}
+  uFwd/=Math.max(1,G.lineup.FWD.filter(function(p){return !!p}).length);
+  uMid/=Math.max(1,G.lineup.MID.filter(function(p){return !!p}).length);
+  oFwd/=Math.max(1,G.opponentLineup.FWD.filter(function(p){return !!p}).length);
+  oMid/=Math.max(1,G.opponentLineup.MID.filter(function(p){return !!p}).length);
+  var uAvg=(uFwd+uMid)/2,oAvg=(oFwd+oMid)/2;
+  var moraleB=(G.teamMorale-70)/100,chemB=(G.teamChemistry-70)/100,atkB=(G.tactics.attack-2)*0.02;
+  var bonus=(G._atkBonus||0)*0.002+(G._defBonus||0)*0.001;
+  return Math.max(0.008,Math.min(0.038,0.022+(uAvg-oAvg)*0.002+moraleB*0.5+chemB*0.3+atkB*0.5+bonus));
+}
+
+function getRandomScorer(isHome){
+  var lineup=isHome?(G.userIsHome?G.lineup:G.opponentLineup):(G.userIsHome?G.opponentLineup:G.lineup);
+  // Determine which team is scoring
+  var scoringTeam=isHome?(G.userIsHome?getUserTeam():getOpponent()):(G.userIsHome?getOpponent():getUserTeam());
+  // Star player numbers per team
+  var stars={portugal:7,argentina:10,france:10,belgium:7,spain:19};
+  var starNum=stars[scoringTeam.id];
+  // Build weighted array: star player appears 3x for higher chance
+  var all=[];lineup.FWD.forEach(function(p){if(p){all.push(p);if(p.n===starNum){all.push(p);all.push(p);}}});lineup.MID.forEach(function(p){if(p){all.push(p);if(p.n===starNum){all.push(p);all.push(p);}}});lineup.DEF.forEach(function(p){if(p){all.push(p);if(p.n===starNum){all.push(p);all.push(p);}}});
+  return all.length?all[Math.floor(Math.random()*all.length)]:{nm:'球员'};
+}
+
+function getRandomPlayer(isHome){
+  var lineup=isHome?(G.userIsHome?G.lineup:G.opponentLineup):(G.userIsHome?G.opponentLineup:G.lineup);
+  var all=[];lineup.FWD.forEach(function(p){if(p)all.push(p)});lineup.MID.forEach(function(p){if(p)all.push(p)});lineup.DEF.forEach(function(p){if(p)all.push(p)});if(lineup.GK)all.push(lineup.GK);
+  return all.length?all[Math.floor(Math.random()*all.length)]:{nm:'球员'};
+}
+
+function simulateMatch(){
+  function tick(){
+    if(G.matchFinished||G.matchPaused){G._matchTimer=setTimeout(tick,500);return;}
+    G.matchMinute++;
+
+    // Water breaks
+    if((G.matchMinute===25||G.matchMinute===70)&&!G.isExtraTime&&!G.isPenalties){
+      if((G.matchMinute===25&&!G._wb1Done)||(G.matchMinute===70&&!G._wb2Done)){
+        if(G.matchMinute===25) G._wb1Done=true;else G._wb2Done=true;
+        G.matchPaused=true;addMatchEvent('info','💧 补水暂停 (2026世界杯特殊规则)');updateScoreboard();
+        setTimeout(function(){showBreakMenu('💧 补水暂停','球员们正在补水降温。利用这段时间调整战术或进行换人。')},200);return;
+      }
+    }
+
+    // Half time
+    if(G.matchMinute===46&&G.matchHalf===1&&!G.isExtraTime){
+      G.matchPaused=true;var added=1+Math.floor(Math.random()*5);
+      addMatchEvent('info','⏸️ 上半场结束 · 伤停补时 +'+added+'分钟');
+      var analysis=G.matchHomeScore>G.matchAwayScore?'主队掌控了比赛节奏':G.matchHomeScore<G.matchAwayScore?'客队效率更高，抓住了机会':'双方势均力敌，下半场将是真正的考验';
+      addMatchEvent('info','📊 半场比分 '+G.matchHomeScore+' - '+G.matchAwayScore+' · '+analysis);updateScoreboard();
+      G.matchHalf=2;G.matchMinute=45;
+      setTimeout(function(){showBreakMenu('⏸️ 中场休息','半场比分 '+G.matchHomeScore+' - '+G.matchAwayScore+'。利用这15分钟调整战术、鼓舞士气或进行换人。')},200);return;
+    }
+
+    if(G.matchMinute===91&&G.matchHalf===2&&!G.isExtraTime){
+      G.matchStoppageTime=1+Math.floor(Math.random()*6);
+      addMatchEvent('info','⏱️ 常规时间结束 · 伤停补时 +'+G.matchStoppageTime+'分钟');G.matchMinute=90;
+    }
+
+    // Extra time check
+    if(G.matchMinute>=90+G.matchStoppageTime&&G.matchHalf===2&&!G.isExtraTime&&!G.isPenalties){
+      if(G.matchHomeScore===G.matchAwayScore){
+        G.matchPaused=true;addMatchEvent('info','⏰ 常规时间结束！比分持平，进入加时赛！');
+        G.isExtraTime=true;G.matchHalf=3;G.matchMinute=90;G.matchStoppageTime=0;G._wb1Done=false;G._wb2Done=false;updateScoreboard();
+        setTimeout(function(){G.matchPaused=false;addMatchEvent('info','▶️ 加时赛上半场开始 (15分钟)');simulateMatch()},2000);return;
+      }else{endGame();return;}
+    }
+
+    // Extra time half
+    if(G.isExtraTime&&G.matchMinute>=106&&G.matchHalf===3){
+      var added=Math.floor(Math.random()*3);addMatchEvent('info','⏸️ 加时赛上半场结束 · 补时 +'+added+'分钟');
+      G.matchHalf=4;G.matchMinute=105;G.matchStoppageTime=added;G.matchPaused=true;
+      setTimeout(function(){showBreakMenu('⏸️ 加时赛半场休息','短暂的休息时间。球员们已经筋疲力尽，需要你的鼓励！')},200);return;
+    }
+
+    if(G.isExtraTime&&G.matchMinute>=120+(G.matchStoppageTime||2)&&G.matchHalf===4){
+      if(G.matchHomeScore===G.matchAwayScore){startPenalties();return;}else{endGame();return;}
+    }
+
+    // Random events (1 in 40 chance per tick)
+    if(Math.random()<0.025&&!G.matchPaused) doRandomEvent();
+
+    // Goal check (capped for realistic scores)
+    var maxGoals=G.isExtraTime?1:3;
+    var homeGoals=G.matchEvents.filter(function(e){return e.type==='goal'&&e.team==='home'&&(G.matchHalf===G.matchHalf)}).length;
+    var awayGoals=G.matchEvents.filter(function(e){return e.type==='goal'&&e.team==='away'}).length;
+    if(Math.random()<calcGoalProb()&&homeGoals<maxGoals&&awayGoals<maxGoals){
+      var isHome=Math.random()<(G.userIsHome?0.53:0.47);
+      if(isHome) G.matchHomeScore++;else G.matchAwayScore++;
+      var scorer=getRandomScorer(isHome);
+      var cheers=['📢 全场沸腾！球迷疯狂庆祝！','🔥 看台变成了欢腾的海洋！','🎉 球迷们高呼'+scorer.nm+'的名字！','💥 震撼世界的一击！'];addMatchEvent('goal','⚽ GOAL！'+scorer.nm+' 破门！('+G.matchHomeScore+'-'+G.matchAwayScore+') '+cheers[Math.floor(Math.random()*cheers.length)]);
+      if(!G.playerStats[scorer.n])G.playerStats[scorer.n]={goals:0,assists:0,shots:0,tackles:0,saves:0,rating:0};
+      G.playerStats[scorer.n].goals=(G.playerStats[scorer.n].goals||0)+1;
+      G.playerStats[scorer.n].rating+=10;
+      // Accumulate career stats
+      if(!G.careerStats[scorer.n])G.careerStats[scorer.n]={goals:0,matches:0,rating:0};
+      G.careerStats[scorer.n].goals=(G.careerStats[scorer.n].goals||0)+1;
+      G.careerStats[scorer.n].rating=(G.careerStats[scorer.n].rating||0)+10;
+      var el=document.getElementById(isHome?'match-home-score':'match-away-score');
+      if(el){el.classList.add('goal-scored');setTimeout(function(){el.classList.remove('goal-scored')},600);}
+    }
+
+    // Card check
+    if(Math.random()<0.015){
+      var isHome=Math.random()<0.5,ct=Math.random()<0.2?'🟥 红牌':'🟨 黄牌';
+      var cp=getRandomPlayer(isHome);addMatchEvent('card',ct+' '+cp.nm+' 被裁判警告');if(ct.indexOf('黄')>=0){G.playerCards[cp.n]=(G.playerCards[cp.n]||0)+1;if(G.playerCards[cp.n]>=2){addMatchEvent('card','⛔ '+cp.nm+' 累积两张黄牌，下一场停赛！');G.playerInjuries[cp.n]=true;}}
+    }
+
+    // Position-based stamina drain every 5 min (only field players)
+    if(G.matchMinute%5===0){
+      var onField={},posMap={};
+      if(G.lineup.GK){onField[G.lineup.GK.n]=true;posMap[G.lineup.GK.n]='GK'}
+      G.lineup.DEF.forEach(function(p){if(p){onField[p.n]=true;posMap[p.n]='DEF'}});
+      G.lineup.MID.forEach(function(p){if(p){onField[p.n]=true;posMap[p.n]='MID'}});
+      G.lineup.FWD.forEach(function(p){if(p){onField[p.n]=true;posMap[p.n]='FWD'}});
+      for(var k in G.playerStamina){
+        if(!onField[k]) continue;
+        // Position-based drain: GK<DEF<MID<FWD
+        var base=G.isExtraTime?2.5:(G._heatResist?1.2:1.8);
+        if(posMap[k]==='GK') base*=0.4;
+        else if(posMap[k]==='DEF') base*=0.7;
+        else if(posMap[k]==='MID') base*=1.0;
+        else base*=1.2;
+        G.playerStamina[k]=Math.max(10,G.playerStamina[k]-base);
+      }
+    }
+
+    updateScoreboard();
+    if(G.matchMinute<130) G._matchTimer=setTimeout(tick,G.matchPaused?500:G.matchSpeed);
+  }
+  tick();
+}
+
+function doRandomEvent(){
+  // Open the coach decision modal with a random event
+  triggerRandomEvent();
+}
+
+// Random events happen automatically during match! Coach must react.
+function triggerRandomEvent(){
+  // This is now called automatically by simulateMatch. No manual trigger.
+  // Events require coach decisions.
+  var evts=[
+    {
+      title:'🔥 绝佳进球机会！',
+      text:'球队获得了一个绝佳的射门机会！如何指挥？',
+      choices:[
+        {text:'果断射门！',act:function(){G.matchPaused=false;closeModal();var sc=Math.random();if(sc<0.4){var isHome=Math.random()<(G.userIsHome?0.6:0.4);if(isHome)G.matchHomeScore++;else G.matchAwayScore++;var p=getRandomScorer(isHome);addMatchEvent('goal','⚽ 精彩射门！'+p.nm+' 破门得分！('+G.matchHomeScore+'-'+G.matchAwayScore+')');notify('进球了！！！','success');updateScoreboard()}else{addMatchEvent('info','😱 射门稍稍偏出...');notify('可惜没进','warning')}}},
+        {text:'传给位置更好的队友',act:function(){G.matchPaused=false;closeModal();var sc=Math.random();if(sc<0.55){var isHome=Math.random()<(G.userIsHome?0.55:0.45);if(isHome)G.matchHomeScore++;else G.matchAwayScore++;var p=getRandomScorer(isHome);addMatchEvent('goal','⚽ 精妙配合！'+p.nm+' 推射空门！('+G.matchHomeScore+'-'+G.matchAwayScore+')');notify('团队配合进球！','success');updateScoreboard()}else{addMatchEvent('info','🛡️ 传球被对方拦截了...');notify('传球被断','warning')}}}
+      ]
+    },
+    {
+      title:'🟨 战术犯规？',
+      text:'对方发动快速反击，我方后卫面临选择——战术犯规还是冒险铲球？',
+      choices:[
+        {text:'战术犯规，吃黄牌保平安',act:function(){G.matchPaused=false;closeModal();var p=getRandomPlayer(true);addMatchEvent('card','🟨 '+p.nm+' 战术犯规吃到黄牌');notify('吃了黄牌但化解了危机','warning')}},
+        {text:'精准铲球，干净利落！',act:function(){G.matchPaused=false;closeModal();if(Math.random()<0.6){addMatchEvent('info','🛡️ 完美的铲球！化解了这次反击');notify('完美防守！','success')}else{addMatchEvent('card','🟥 铲球失误！裁判直接出示红牌！');notify('红牌！少打一人！','error')}}}
+      ]
+    },
+    {
+      title:'🤕 球员受伤！',
+      text:'一名球员倒地不起，队医示意需要换人。你是选择立即换人，还是让他坚持？',
+      choices:[
+        {text:'立即换人（消耗1个换人名额）',act:function(){G.matchPaused=false;closeModal();if(G._subsLeft>0){notify('请使用换人功能替换受伤球员','warning');quickSub();}else{addMatchEvent('info','🤕 没有换人名额了，球员勉强坚持...');notify('没有换人名额了！','error')}}},
+        {text:'让他再坚持10分钟看看',act:function(){G.matchPaused=false;closeModal();addMatchEvent('info','🤕 球员选择坚持，但状态受到影响');notify('球员体力-20','warning');var p=getRandomPlayer(true);if(p.n)G.playerStamina[p.n]=Math.max(5,G.playerStamina[p.n]-20);}}
+      ]
+    },
+    {
+      title:'💥 场上冲突！',
+      text:'双方球员发生口角推搡，裁判正在介入。你的态度是？',
+      choices:[
+        {text:'示意球员冷静，专注比赛',act:function(){G.matchPaused=false;closeModal();addMatchEvent('info','😤 队长出面平息了冲突');notify('球队化学+5','success');G.teamChemistry=Math.min(100,G.teamChemistry+5);}},
+        {text:'向裁判施压，要求严惩对方',act:function(){G.matchPaused=false;closeModal();if(Math.random()>0.5){addMatchEvent('card','🟨 对方球员吃到黄牌！');notify('对方吃黄牌！','success')}else{addMatchEvent('card','🟨 裁判反而给了我们一张黄牌...');notify('我们也吃了黄牌','warning');}}}
+      ]
+    },
+    {
+      title:'🔴 VAR审核中！',
+      text:'裁判正在观看VAR回放，可能涉及点球或红牌判罚。你希望裁判如何判罚？',
+      choices:[
+        {text:'保持沉默，尊重裁判决定',act:function(){G.matchPaused=false;closeModal();var r=Math.random();if(r<0.4){addMatchEvent('card','🔴 VAR确认：红牌！对方一名球员被罚下！');notify('对方红牌！','success')}else if(r<0.7){addMatchEvent('info','✅ VAR审核结束：无重大犯规');notify('无事发生','warning')}else{var sc=getRandomScorer(Math.random()>0.4);var made=Math.random()>0.2;if(made){if(Math.random()>0.4)G.matchHomeScore++;else G.matchAwayScore++;addMatchEvent('goal','🎯 VAR判罚点球！'+sc.nm+'命中！('+G.matchHomeScore+'-'+G.matchAwayScore+')')}else{addMatchEvent('info','🎯 VAR判罚点球！'+sc.nm+'罚失！')}updateScoreboard()}}},
+        {text:'强烈抗议，给裁判施压',act:function(){G.matchPaused=false;closeModal();var r=Math.random();if(r<0.6){addMatchEvent('card','🟨 教练抗议过激吃到黄牌');notify('你吃到了黄牌！','error')}else{addMatchEvent('info','😤 裁判无视了你的抗议');notify('抗议无效','warning');}}}
+      ]
+    },
+    {
+      title:'🌧️ 天气突变！',
+      text:'突然下起了大雨，场地变得湿滑。你需要调整战术吗？',
+      choices:[
+        {text:'改为长传冲吊，减少地面配合',act:function(){G.matchPaused=false;closeModal();G.tactics.passing=3;addMatchEvent('info','🌧️ 球队改为长传战术应对雨战');notify('传球风格已切换为长传冲吊','success');}},
+        {text:'坚持原有战术不变',act:function(){G.matchPaused=false;closeModal();addMatchEvent('info','🌧️ 球队坚持地面配合，但失误增多');notify('控球率略微下降','warning');}}
+      ]
+    },
+    {
+      title:'⭐ 核心球员被重点盯防！',
+      text:getUserTeam().name+'的进攻核心被对方专人盯防，发挥受限。如何应对？',
+      choices:[
+        {text:'让其他球员更多参与进攻',act:function(){G.matchPaused=false;closeModal();G.tactics.attack=Math.min(4,G.tactics.attack+1);addMatchEvent('info','⭐ 调整进攻重心，多点开花');notify('进攻倾向+1','success');}},
+        {text:'核心球员后撤拿球，拉开空间',act:function(){G.matchPaused=false;closeModal();G.tactics.passing=1;addMatchEvent('info','⭐ 核心后撤组织，串联全队');notify('传球风格切换为混合','success');}}
+      ]
+    },
+    // ===== NEW EVENTS =====
+    {
+      title:'🎯 任意球绝佳位置！',
+      text:'对方在禁区前沿犯规，我方获得了一个位置极佳的任意球！选择谁来主罚？战术如何？',
+      choices:[
+        {text:'直接射门！相信主罚球员的实力',act:function(){G.matchPaused=false;closeModal();if(Math.random()<0.35){var p=getRandomScorer(true);if(Math.random()>0.4)G.matchHomeScore++;else G.matchAwayScore++;addMatchEvent('goal','🎯 精彩任意球！'+p.nm+' 圆月弯刀直挂死角！('+G.matchHomeScore+'-'+G.matchAwayScore+')');notify('世界波！！！','success');updateScoreboard()}else{addMatchEvent('info','🧤 任意球被门将飞身扑出！');notify('差一点！','warning')}}},
+        {text:'战术配合，传中给队友头球',act:function(){G.matchPaused=false;closeModal();if(Math.random()<0.45){var p=getRandomScorer(true);if(Math.random()>0.4)G.matchHomeScore++;else G.matchAwayScore++;addMatchEvent('goal','⚽ 战术任意球！'+p.nm+' 头槌破门！('+G.matchHomeScore+'-'+G.matchAwayScore+')');notify('战术成功！','success');updateScoreboard()}else{addMatchEvent('info','🛡️ 对方后卫头球解围');notify('被解围了','warning');}}}
+      ]
+    },
+    {
+      title:'🧤 门将神扑！',
+      text:'对方一脚势大力沉的射门直奔死角，但我方门将做出了惊人的扑救！这次扑救提振了全队士气。',
+      choices:[
+        {text:'趁势反击！',act:function(){G.matchPaused=false;closeModal();G.teamMorale=Math.min(100,G.teamMorale+8);addMatchEvent('info','🔥 门将的神扑点燃了全队！士气大振');notify('士气+8！','success');if(Math.random()<0.3){if(Math.random()>0.4)G.matchHomeScore++;else G.matchAwayScore++;addMatchEvent('goal','⚡ 反击得手！进球了！('+G.matchHomeScore+'-'+G.matchAwayScore+')');notify('反击进球！','success');updateScoreboard()}}},
+        {text:'稳住防线，保持冷静',act:function(){G.matchPaused=false;closeModal();G.tactics.defense=Math.min(4,G.tactics.defense+1);addMatchEvent('info','🛡️ 球队收紧防线，巩固防守');notify('防守+1','success');}}
+      ]
+    },
+    {
+      title:'🔄 对方变阵！',
+      text:'对方教练突然改变了阵型，从4后卫变成了3中卫体系，进攻更加激进。你如何应对？',
+      choices:[
+        {text:'加强中场拦截，切断对方输送线',act:function(){G.matchPaused=false;closeModal();G.tactics.defense=Math.min(4,G.tactics.defense+1);addMatchEvent('info','🛡️ 中场加强拦截，破坏对方进攻节奏');notify('防守策略调整','success');}},
+        {text:'利用对方三中卫的空当打反击',act:function(){G.matchPaused=false;closeModal();G.tactics.attack=Math.min(4,G.tactics.attack+1);addMatchEvent('info','⚡ 针对对方空当发动快速反击');notify('进攻倾向+1','success');if(Math.random()<0.25){var p=getRandomScorer(true);if(Math.random()>0.4)G.matchHomeScore++;else G.matchAwayScore++;addMatchEvent('goal','⚽ 反击奏效！'+p.nm+' 单刀破门！('+G.matchHomeScore+'-'+G.matchAwayScore+')');notify('进球！','success');updateScoreboard()}}}
+      ]
+    },
+    {
+      title:'📢 球迷骚动！',
+      text:'看台上爆发了小规模冲突，比赛被迫暂停。球员们的注意力受到了影响。',
+      choices:[
+        {text:'让队长安抚球迷情绪',act:function(){G.matchPaused=false;closeModal();G.teamMorale=Math.min(100,G.teamMorale+5);addMatchEvent('info','🤝 队长的举动赢得了球迷的掌声');notify('士气+5','success');}},
+        {text:'集中球员注意力，专注比赛',act:function(){G.matchPaused=false;closeModal();G.teamChemistry=Math.min(100,G.teamChemistry+5);addMatchEvent('info','🧘 球队保持专注，不受外界干扰');notify('化学+5','success');}}
+      ]
+    },
+    {
+      title:'⏱️ 伤停补时阶段！',
+      text:'比赛进入了伤停补时，比分仍然胶着。这是最后的进攻机会！',
+      choices:[
+        {text:'全线压上！孤注一掷！',act:function(){G.matchPaused=false;closeModal();G.tactics.attack=4;var sc=Math.random();if(sc<0.3){var p=getRandomScorer(true);if(Math.random()>0.4)G.matchHomeScore++;else G.matchAwayScore++;addMatchEvent('goal','⏱️ 绝杀！！！'+p.nm+' 在最后时刻破门！('+G.matchHomeScore+'-'+G.matchAwayScore+')');notify('绝杀！！！！','success');updateScoreboard()}else if(sc<0.5){addMatchEvent('info','😱 射门击中门柱！差一点就绝杀了...');notify('门柱！','warning')}else{addMatchEvent('info','🛡️ 对方全部退防，我们没能突破');notify('进攻被化解','warning')}}},
+        {text:'稳扎稳打，保持控球',act:function(){G.matchPaused=false;closeModal();addMatchEvent('info','⏱️ 球队耐心传导，保持球权');notify('稳住了局面','success');}}
+      ]
+    },
+    {
+      title:'👟 球员装备故障！',
+      text:'一名球员的球鞋突然坏了，需要到场边更换。球队暂时少打一人。',
+      choices:[
+        {text:'让他快速换鞋，其他球员补位',act:function(){G.matchPaused=false;closeModal();addMatchEvent('info','👟 球员迅速换好装备回到场上');notify('虚惊一场','warning');}},
+        {text:'借机拖延时间，让球队喘息',act:function(){G.matchPaused=false;closeModal();for(var k in G.playerStamina){if(G.playerStamina[k]<80)G.playerStamina[k]=Math.min(100,G.playerStamina[k]+5);}addMatchEvent('info','⏱️ 球队利用这段时间恢复了体力');notify('全队体力+5','success');}}
+      ]
+    },
+    {
+      title:'🏟️ 主场球迷高唱队歌！',
+      text:'看台上的球迷突然齐声高唱球队的队歌，场面令人动容。球员们的斗志被点燃了！',
+      choices:[
+        {text:'示意球员回应球迷的期待！',act:function(){G.matchPaused=false;closeModal();G.teamMorale=Math.min(100,G.teamMorale+15);G.tactics.attack=Math.min(4,G.tactics.attack+1);addMatchEvent('info','🎵 球迷的歌声给了球队无穷的力量！');notify('士气+15！全队爆发！','success');}},
+        {text:'保持冷静，不被情绪左右',act:function(){G.matchPaused=false;closeModal();G.teamChemistry=Math.min(100,G.teamChemistry+8);addMatchEvent('info','🤝 球队保持专注，化学提升');notify('化学+8','success');}}
+      ]
+    },
+    {
+      title:'🩹 轻伤不下火线',
+      text:'一名球员在拼抢中受了轻伤，队医进行了简单处理后示意可以继续比赛。但他明显受到了影响。',
+      choices:[
+        {text:'相信球员，让他继续',act:function(){G.matchPaused=false;closeModal();var p=getRandomPlayer(true);if(p.n)G.playerStamina[p.n]=Math.max(20,G.playerStamina[p.n]-15);addMatchEvent('info','🩹 '+p.nm+' 带伤坚持，精神可嘉');notify(p.nm+'体力-15','warning');G.teamMorale=Math.min(100,G.teamMorale+3);}},
+        {text:'立即换人，保护球员健康',act:function(){G.matchPaused=false;closeModal();if(G._subsLeft>0){notify('请使用换人功能','warning');quickSub();}else{addMatchEvent('info','🩹 没有换人名额，只能继续坚持');notify('无换人名额','error');}}}
+      ]
+    },
+    {
+      title:'🎤 场边采访干扰',
+      text:'中场休息时，对方主教练在接受采访时发表了挑衅言论，说"我们完全掌控了比赛"。你的球员们很愤怒。',
+      choices:[
+        {text:'火上浇油，让球员们用进球回击！',act:function(){G.matchPaused=false;closeModal();G.teamMorale=Math.min(100,G.teamMorale+10);G.tactics.attack=Math.min(4,G.tactics.attack+1);addMatchEvent('info','🔥 对方教练的言论激怒了我们的球员！');notify('士气+10，进攻+1！','success');}},
+        {text:'平息怒火，让球员保持冷静',act:function(){G.matchPaused=false;closeModal();G.teamChemistry=Math.min(100,G.teamChemistry+5);addMatchEvent('info','🧘 教练让球员保持冷静，用实力说话');notify('化学+5','success');}}
+      ]
+    },
+    {
+      title:'🍀 幸运女神眷顾',
+      text:'对方的一次射门击中了横梁和门柱后弹出！运气站在了我们这一边。',
+      choices:[
+        {text:'这是我们的幸运日！加强进攻！',act:function(){G.matchPaused=false;closeModal();G.teamMorale=Math.min(100,G.teamMorale+8);addMatchEvent('info','🍀 大难不死！全队士气高涨');notify('士气+8','success');}},
+        {text:'运气不会一直眷顾，加强防守',act:function(){G.matchPaused=false;closeModal();G.tactics.defense=Math.min(4,G.tactics.defense+1);addMatchEvent('info','🛡️ 收紧防线，不再给对手机会');notify('防守+1','success');}}
+      ]
+    },
+    {
+      title:'📊 数据统计提醒',
+      text:'助教递上了实时数据：我方控球率领先但射门转化率偏低。需要调整吗？',
+      choices:[
+        {text:'增加远射尝试',act:function(){G.matchPaused=false;closeModal();if(Math.random()<0.35){var p=getRandomScorer(true);if(Math.random()>0.4)G.matchHomeScore++;else G.matchAwayScore++;addMatchEvent('goal','⚽ 远射破门！'+p.nm+' 一脚世界波！('+G.matchHomeScore+'-'+G.matchAwayScore+')');notify('世界波！','success');updateScoreboard()}else{addMatchEvent('info','🎯 远射次数增加，但准头不够');notify('继续努力','warning')}}},
+        {text:'耐心传导，寻找更好的机会',act:function(){G.matchPaused=false;closeModal();G.tactics.passing=0;addMatchEvent('info','🔄 球队改为短传渗透，耐心寻找空当');notify('传球切换为短传','success');}}
+      ]
+    },
+  ];
+  var ev=evts[Math.floor(Math.random()*evts.length)];
+  G.matchPaused=true;
+  var h='<h2>⚡ '+ev.title+'</h2>';
+  h+='<div class="story-text">'+ev.text+'</div>';
+  h+='<h3>🤔 你的决定：</h3>';
+  for(var i=0;i<ev.choices.length;i++){
+    h+='<div class="choice-btn" onclick="('+ev.choices[i].act.toString()+')()">'+ev.choices[i].text+'</div>';
+  }
+  h+='<button class="btn danger" onclick="closeModal();G.matchPaused=false" style="display:block;width:100%;margin-top:10px">✕ 关闭</button>';
+  openModal(h);
+}
+
+var _pendOut=null;
+function quickSub(){
+  G.matchPaused=true;var team=getUserTeam();
+  var starters=[];if(G.lineup.GK)starters.push(G.lineup.GK);
+  G.lineup.DEF.forEach(function(p){if(p)starters.push(p)});
+  G.lineup.MID.forEach(function(p){if(p)starters.push(p)});
+  G.lineup.FWD.forEach(function(p){if(p)starters.push(p)});
+  var bench=team.p.filter(function(p){
+    var inStart=starters.find(function(s){return s&&s.n===p.n});
+    if(inStart) return false;
+    if(G.playerInjuries[p.n]) return false;
+    if(G._subsUsed&&G._subsUsed.indexOf(p.n)>=0) return false;
+    return true;
+  });
+  if(!G._subsUsed) G._subsUsed=[];
+  var h='<h2>🔄 换人 ('+G._subsLeft+'次剩余)</h2>';
+  if(G._subsLeft<=0){h+='<p style="color:#f44336;text-align:center">换人名额已用完！</p>';}
+  h+='<div style="display:flex;gap:10px"><div style="flex:1"><h3>场上球员</h3>';
+  starters.forEach(function(p){
+    var st=G.playerStamina[p.n]||100;
+    var bg=st<30?'background:rgba(255,0,0,.15)':st<50?'background:rgba(255,150,0,.1)':'';
+    var sc='stamina-'+(st>70?'high':st>40?'mid':'low');
+    h+='<div class="player-row" style="'+bg+';cursor:pointer" onclick="window._pendOut='+p.n+';var nn=document.createElement(\'div\');nn.style.cssText=\'position:fixed;top:20px;right:20px;padding:10px 20px;border-radius:8px;z-index:300;font-weight:600;background:rgba(255,150,0,.2);border:1px solid #ff9800;color:#ff9800\';nn.textContent=\'已选择换下 '+p.nm+' (体力'+st+')\';document.body.appendChild(nn);setTimeout(function(){nn.remove()},2000)"><span>'+p.n+' '+p.nm+'</span><span style="color:#ffd700">⭐'+p.rt+'</span><div class="stamina-bar"><div class="stamina-fill '+sc+'" style="width:'+st+'%"></div></div><span style="font-size:.7em;color:#aaa">'+st+'</span></div>';
+  });
+  h+='</div><div style="flex:1"><h3>替补席</h3>';
+  if(bench.length===0) h+='<div style="color:#aaa;text-align:center;padding:10px">无可用替补</div>';
+  bench.forEach(function(p){
+    var st=G.playerStamina[p.n]||100,sc='stamina-'+(st>70?'high':st>40?'mid':'low');
+    h+='<div class="player-row" style="cursor:pointer" onclick="doSubIn('+p.n+')"><span>'+p.n+' '+p.nm+'</span><span style="color:#ffd700">⭐'+p.rt+'</span><div class="stamina-bar"><div class="stamina-fill '+sc+'" style="width:'+st+'%"></div></div><span style="font-size:.7em;color:#aaa">'+st+'</span></div>';
+  });
+  h+='</div></div><button class="btn danger" onclick="closeModal();G.matchPaused=false" style="margin-top:10px">关闭</button>';
+  openModal(h);
+}
+
+function doSubIn(num){
+  var pend=window._pendOut||_pendOut;
+  if(!pend||G._subsLeft<=0)return;
+  var team=getUserTeam();
+  var outP=team.p.find(function(p){return p.n===pend});
+  var inP=team.p.find(function(p){return p.n===num});
+  if(!outP||!inP)return;
+  // Track subbed-out player so they can't return
+  if(!G._subsUsed) G._subsUsed=[];
+  G._subsUsed.push(outP.n);
+  G._subsLeft--;
+  // Record minutes: subbed-out player's end time, subbed-in player's start time
+  var currMin=G.matchMinute>90?90:G.matchMinute;
+  if(G.playerMinutes[outP.n]) G.playerMinutes[outP.n].end=currMin;
+  G.playerMinutes[inP.n]={start:currMin,end:90,subbed:true};
+  addMatchEvent('sub','🔄 换人('+(5-G._subsLeft)+'/5)：'+inP.nm+' ↑ '+outP.nm+' ↓ ('+currMin+"')");
+  if(G.lineup.GK&&G.lineup.GK.n===outP.n) G.lineup.GK=inP;
+  G.lineup.DEF=G.lineup.DEF.map(function(p){return p&&p.n===outP.n?inP:p});
+  G.lineup.MID=G.lineup.MID.map(function(p){return p&&p.n===outP.n?inP:p});
+  G.lineup.FWD=G.lineup.FWD.map(function(p){return p&&p.n===outP.n?inP:p});
+  window._pendOut=null;_pendOut=null;G.matchPaused=false;
+  closeModal();
+  document.getElementById('match-actions').innerHTML=renderMatchActions();
+  renderMatchPitch();updateScoreboard();
+}
+
+function showBreakMenu(title,msg){
+  var h='<div style="text-align:center"><h2>'+title+'</h2>';
+  h+='<p style="color:#aaa;margin:10px 0">'+msg+'</p>';
+  h+='<div style="margin:10px 0;text-align:left">'+renderMatchTacticsHTML()+'</div>';
+  h+='<button class="btn gold" onclick="closeModal();G.matchPaused=false;addMatchEvent(\'info\',\'▶️ 比赛继续\');simulateMatch();document.getElementById(\'match-actions\').innerHTML=renderMatchActions()" style="margin:5px;font-size:1.1em;padding:12px 30px">▶️ 继续比赛</button>';
+  h+='<button class="btn" onclick="closeModal();setTimeout(function(){quickSub()},300)" style="margin:5px">🔄 换人调整</button></div>';
+  openModal(h);
+}
+
+function changeTactic(){
+  G.matchPaused=true;
+  var h='<h2>⚙️ 调整战术</h2>'+renderMatchTacticsHTML();
+  h+='<button class="btn gold" onclick="closeModal();G.matchPaused=false;renderMatchPitch()" style="margin-top:10px;width:100%">确认调整</button>';
+  openModal(h);
+}
+
+function renderMatchTacticsHTML(){
+  var h='';
+  h+='<div class="slider-group"><label>⚔️ 进攻：<strong id="matk-label">'+TACTICS.attack[G.tactics.attack]+'</strong></label><input type="range" min="0" max="4" value="'+G.tactics.attack+'" oninput="G.tactics.attack=parseInt(this.value);document.getElementById(\'matk-label\').textContent=TACTICS.attack[G.tactics.attack]"></div>';
+  h+='<div class="slider-group"><label>🎯 传球：<strong id="mpass-label">'+TACTICS.passing[G.tactics.passing]+'</strong></label><input type="range" min="0" max="4" value="'+G.tactics.passing+'" oninput="G.tactics.passing=parseInt(this.value);document.getElementById(\'mpass-label\').textContent=TACTICS.passing[G.tactics.passing]"></div>';
+  h+='<div class="slider-group"><label>🛡️ 防守：<strong id="mdef-label">'+TACTICS.defense[G.tactics.defense]+'</strong></label><input type="range" min="0" max="4" value="'+G.tactics.defense+'" oninput="G.tactics.defense=parseInt(this.value);document.getElementById(\'mdef-label\').textContent=TACTICS.defense[G.tactics.defense]"></div>';
+  h+='<div class="slider-group"><label>🎪 定位球：<strong id="msp-label">'+TACTICS.setpiece[G.tactics.setpiece]+'</strong></label><input type="range" min="0" max="4" value="'+G.tactics.setpiece+'" oninput="G.tactics.setpiece=parseInt(this.value);document.getElementById(\'msp-label\').textContent=TACTICS.setpiece[G.tactics.setpiece]"></div>';
+  h+='<div class="slider-group"><label>🏷️ 特殊战术：</label><select onchange="G.tactics.special=parseInt(this.value)" style="width:100%">';
+  for(var i=0;i<TACTICS.special.length;i++) h+='<option value="'+i+'"'+(G.tactics.special===i?' selected':'')+'>'+TACTICS.special[i]+'</option>';
+  h+='</select></div>';
+  return h;
+}
+
+function startPenalties(){
+  G.matchPaused=true;G.isPenalties=true;
+  addMatchEvent('info','🎯 加时赛结束！进入点球大战！');
+  addMatchEvent('info','😰 足球比赛中最残酷的时刻...');
+  setTimeout(function(){
+    var pH=0,pA=0;var log=[];
+    for(var i=0;i<5;i++){var h=Math.random()>0.18,a=Math.random()>0.2;if(h)pH++;if(a)pA++;log.push({h:h,a:a,round:i+1});}
+    var r=6;while(pH===pA){var h=Math.random()>0.25,a=Math.random()>0.25;if(h)pH++;if(a)pA++;log.push({h:h,a:a,round:r});r++;if(r>20)break;}
+    log.forEach(function(p){addMatchEvent(p.h?'goal':'card','🎯 第'+p.round+'轮：'+(p.h?'✅':'❌')+' (主) vs '+(p.a?'✅':'❌')+' (客)');});
+    if(pH>pA){G.matchHomeScore++;G._penWinner='home'}else{G.matchAwayScore++;G._penWinner='away'}
+    addMatchEvent('goal','🏆 点球大战结束！'+pH+'-'+pA+'！');
+    G.matchPaused=false;updateScoreboard();setTimeout(function(){endGame()},2000);
+  },1500);
+}
+
+function endGame(){
+  G.matchFinished=true;if(G._matchTimer)clearTimeout(G._matchTimer);
+  var uSc=G.userIsHome?G.matchHomeScore:G.matchAwayScore;
+  var oSc=G.userIsHome?G.matchAwayScore:G.matchHomeScore;
+  var won=G._penWinner?(G._penWinner==='home'?G.userIsHome:!G.userIsHome):uSc>oSc;
+  G.matchHistory.push({opponent:G.opponentKey,userScore:uSc,oppScore:oSc,won:won,stage:G.tournamentStage,stadium:G.stadium});
+  if(won){
+    if(G.matchIndex===3){showVictory();return;}
+    G.matchIndex++;
+    if(G.matchIndex>=4){showVictory();return;}
+  }else{
+    if(G.matchIndex===2){G.matchIndex=4;G.opponentKey=G.allOpponents[2];updateStage();showPostMatch(false);return;}
+    showElimination();return;
+  }
+  G.opponentKey=G.allOpponents[G.matchIndex];
+  G.stadium=STADIUMS[Math.floor(Math.random()*STADIUMS.length)];
+  var wts=[{c:'☀️ 晴',e:'场地干燥，球速快'},{c:'⛅ 多云',e:'舒适天气'},{c:'🌤️ 晴间多云',e:'微风'},{c:'🌧️ 小雨',e:'湿滑'},{c:'💨 大风',e:'长传受影响'}];var wt=wts[Math.floor(Math.random()*wts.length)];G.weather={temp:25+Math.floor(Math.random()*15),condition:wt.c,effect:wt.e};
+  updateStage();showPostMatch(true);
+}
+
+function generateMediaReviews(won,lm,team,opp){
+  var reviews=[],uSc=lm.userScore,oSc=lm.oppScore,diff=uSc-oSc;
+  var bestP='球员们';var starters=[];if(G.lineup.GK)starters.push(G.lineup.GK);G.lineup.DEF.forEach(function(p){if(p)starters.push(p)});G.lineup.MID.forEach(function(p){if(p)starters.push(p)});G.lineup.FWD.forEach(function(p){if(p)starters.push(p)});
+  var potm=starters.sort(function(a,b){var sa=(G.playerStats[a.n]?G.playerStats[a.n].goals||0:0)*10+(G.playerStats[a.n]?G.playerStats[a.n].rating||0:0);var sb=(G.playerStats[b.n]?G.playerStats[b.n].goals||0:0)*10+(G.playerStats[b.n]?G.playerStats[b.n].rating||0:0);return sb-sa})[0];
+  var bestPN=potm?potm.nm:'球员们';
+  var goalScorers=G.matchEvents.filter(function(e){return e.type==='goal'}).length;
+
+  // Media outlets pool
+  var outlets=[
+    {outlet:'天空体育',icon:'📡',color:'#4fc3f7',author:'Gary Neville',
+     win:[''+team.name+'今天展现出了冠军级别的表现！'+bestPN+'的发挥堪称完美，这就是世界杯的魅力。','They showed real quality out there. '+bestPN+' was absolutely magnificent. 这支球队配得上胜利。'],
+     lose:[''+team.name+'今天不在最佳状态。进攻端缺乏创造力，防守也有漏洞。他们需要尽快调整。','Disappointing performance. Too many mistakes at this level. '+opp.name+' was simply the better side today.'],
+     draw:['A tight contest. '+team.name+' had moments of brilliance but couldn\'t find the decisive goal.']},
+    {outlet:'马卡报',icon:'📰',color:'#ef5350',author:'José Félix Díaz',
+     win:['¡Victoria espectacular! '+bestPN+' demostró por qué es considerado uno de los mejores del mundo. '+team.name+' está lista para llegar lejos.','令人信服的胜利！'+team.name+'展现出了西班牙足球的优雅与力量。'],
+     lose:['Una derrota dolorosa para '+team.name+'. Faltó creatividad en ataque y solidez defensiva.','惨痛的失利。'+team.name+'需要反思这场比赛中暴露的问题。'],
+     draw:[''+team.name+' mostró destellos de calidad pero no fue suficiente para llevarse los tres puntos.']},
+    {outlet:'阿斯报',icon:'📋',color:'#ff9800',author:'Alfredo Relaño',
+     win:[''+team.name+'给球迷们带来了欢乐！这场胜利将载入球队史册。'+bestPN+'是本场比赛无可争议的MVP。','精彩绝伦！从第一分钟到最后一分钟，'+team.name+'都掌控了比赛节奏。'],
+     lose:[''+(diff<-2?'惨败':'惜败')+'让人遗憾。'+team.name+'需要重新审视战术安排，教练组面临巨大压力。','这场失利暴露了'+team.name+'在关键位置上的短板。'],
+     draw:['双方势均力敌，'+team.name+'错失了几个关键机会，否则结果会大不相同。']},
+    {outlet:'卫报',icon:'🗞️',color:'#66bb6a',author:'Jonathan Wilson',
+     win:['A tactical masterclass. '+team.name+' executed their game plan to perfection. '+bestPN+' was the difference maker.','战术上的完胜。'+team.name+'证明了足球不仅仅是球员个人能力的比拼。'],
+     lose:[''+opp.name+' exposed the weaknesses in '+team.name+'\'s defensive structure. A lot of work to be done.','输了比赛，但也许这正是'+team.name+'需要的警钟。'],
+     draw:['The stalemate reflects the fine margins at this level. '+team.name+' will be frustrated not to take all three points.']},
+    {outlet:'BBC Sport',icon:'🎙️',color:'#e53935',author:'Gary Lineker',
+     win:[''+bestPN+' was absolutely sensational! '+team.name+' put on a show tonight. This is what the World Cup is all about!','精彩绝伦的表演！'+bestPN+'就是为这样的大场面而生的。'],
+     lose:['Oh dear. That was not the '+team.name+' we expected to see. Credit to '+opp.name+', they deserved the win.','这不是我们期待的'+team.name+'。对手表现更出色，配得上胜利。'],
+     draw:['A fascinating tactical battle. '+team.name+' showed resilience but need more in the final third.']},
+    {outlet:'每日体育报',icon:'📊',color:'#42a5f5',author:'Lluís Mascaró',
+     win:[''+team.name+' brilló con luz propia！从门将到前锋，每个位置都发挥出色。'+bestPN+'是今天的明星。','光芒四射的'+team.name+'！这支球队有着夺冠的基因。'],
+     lose:['令人失望的表现。'+team.name+'似乎没有做好应对'+opp.name+'战术的准备。教练的排兵布阵值得商榷。','这场失利应该让'+team.name+'警醒——世界杯没有容易的比赛。'],
+     draw:[''+(uSc>0?'进攻端有所建树但':'')+'防守端还需要进一步磨合。'+team.name+'还有提升空间。']},
+    {outlet:'⚡ 甲亢哥',icon:'⚡',color:'#ff5722',author:'IShowSpeed',
+     winspecial:function(){return team.id==='portugal'?'WOOOOO！！！PORTUGAL！！！CRISTIANO RONALDOOOOOOO！！！SUIIIIIII！！！'+bestPN+' IS THE GOAT！！！THIS IS OUR YEAR！！！🏆🏆🏆':'LET\'S GOOOOOO！！！'+team.name+'拿下胜利！'+bestPN+'太猛了！世界杯就是要这样打！🔥🔥🔥'},
+     losespecial:function(){return team.id==='portugal'?'NOOOOOO！！！葡萄牙不能输！！！我们要相信C罗！！！下一场一定要赢！！！SUIIIII！！！':'不！！！'+team.name+'输了！但这只是开始！我们还能翻盘！相信'+team.name+'！！！'},
+     drawspecial:function(){return team.id==='portugal'?'葡萄牙这场踢得还行！但我们能踢得更好！CR7会带领我们走向胜利！SUIII！！！':'这场平局还行！但'+team.name+'必须拿下下一场！加油！！！'}},
+    {outlet:'詹俊',icon:'🎤',color:'#ffd700',author:'著名足球评论员',
+     win:[''+bestPN+'今天就是齐天大圣下凡！谁也挡不住！'+team.name+'打出了堪称完美的比赛，球迷们有福了！','天呐！'+bestPN+'这个进球可以载入世界杯史册！这就是足球的魅力！'],
+     lose:['这场比赛'+team.name+'不在节奏上。进攻三区缺乏变化，防守端注意力不够集中。要总结的地方很多。','很遗憾，'+team.name+'没能打出自己的风格。但没关系，足球是圆的，一切皆有可能。'],
+     draw:['双方平分秋色。'+team.name+'控制力不错，但缺少致命一击。下一场值得期待！']},
+    {outlet:'王涛',icon:'🎧',color:'#4caf50',author:'实况足球解说',
+     win:[''+bestPN+'的发挥让我想起了他在训练场上的英姿！'+team.name+'今天把训练中的东西完美呈现在了比赛中！','这球进得太漂亮了！'+bestPN+'的跑位、停球、射门一气呵成，教科书般的进球！'],
+     lose:['说实话，今天'+team.name+'的发挥确实不尽如人意。但这就是足球——有赢就有输，关键是下一场怎么调整。','输了比赛不要紧，要紧的是从失败中吸取教训。'+team.name+'还有机会。'],
+     draw:['这场比赛质量很高！'+team.name+'和'+opp.name+'都展现了极高的技战术水平。平局是对双方最好的写照。']}
+  ];
+
+  // Pick 4 random outlets
+  var picked=[];
+  var pool=outlets.slice();
+  for(var i=0;i<4&&pool.length>0;i++){
+    var idx=Math.floor(Math.random()*pool.length);
+    picked.push(pool.splice(idx,1)[0]);
+  }
+
+  // Generate reviews
+  for(var i=0;i<picked.length;i++){
+    var o=picked[i];
+    var text='';
+    if(o.winspecial&&team.id==='portugal'){
+      text=won?o.winspecial():o.drawspecial?o.drawspecial():o.losespecial?o.losespecial():o.win[0];
+    }else{
+      if(won&&uSc-oSc>=2) text=o.win[Math.floor(Math.random()*o.win.length)];
+      else if(won) text=o.win[0];
+      else if(!won&&oSc-uSc>=2&&o.lose.length>1) text=o.lose[1];
+      else if(!won) text=o.lose[0];
+      else text=o.draw[0];
+    }
+    reviews.push({outlet:o.outlet,icon:o.icon,color:o.color,author:o.author,text:text});
+  }
+  return reviews;
+}
+
+function showPostMatch(won){
+  showScreen('postmatch');
+  var opp=getOpponent(),team=getUserTeam();
+  var lm=G.matchHistory[G.matchHistory.length-1];
+  var h='<div class="card" style="text-align:center"><div style="font-size:4em">'+(won?'🎉':'😞')+'</div>';
+  h+='<h2>'+(won?'胜利！晋级下一轮！':'遗憾落败...')+'</h2>';
+  h+='<div style="font-size:2em;margin:15px 0"><span style="font-size:1.5em">'+team.flag+'</span> <strong>'+lm.userScore+' - '+lm.oppScore+'</strong> <span style="font-size:1.5em">'+opp.flag+'</span></div>';
+  if(G._penWinner) h+='<p style="color:#ffd700">(点球大战决出胜负)</p>';
+  var uSc=lm.userScore,oSc=lm.oppScore;var achievements='';if(uSc===0&&oSc===0)achievements+='🔒 沉闷平局 ';else if(uSc===0&&oSc>0)achievements+='😔 被零封 ';else if(oSc===0&&uSc>0)achievements+='🧤 零封对手！';if(achievements)h+='<div style="color:#ffa500;font-size:.85em;margin-top:5px">'+achievements+'</div>';h+='<p>🏟️ '+G.stadium.name+' · '+G.tournamentStage+'</p>';
+  // POTM - compute once
+  var startersP=[];
+  if(G.lineup.GK)startersP.push(G.lineup.GK);
+  G.lineup.DEF.forEach(function(p){if(p)startersP.push(p)});
+  G.lineup.MID.forEach(function(p){if(p)startersP.push(p)});
+  G.lineup.FWD.forEach(function(p){if(p)startersP.push(p)});
+  var potm=null;
+  if(startersP.length>0){
+    startersP.sort(function(a,b){var sa=(G.playerStats[a.n]?G.playerStats[a.n].goals||0:0)*10+(G.playerStats[a.n]?G.playerStats[a.n].rating||0:0);var sb=(G.playerStats[b.n]?G.playerStats[b.n].goals||0:0)*10+(G.playerStats[b.n]?G.playerStats[b.n].rating||0:0);return sb-sa});
+    potm=startersP[0];
+  }
+  if(potm) h+='<div style="margin-top:10px;padding:8px;background:rgba(255,215,0,.1);border-radius:8px;text-align:center">⭐ 本场最佳：'+potm.nm+' ('+potm.rt+'分'+(G.playerStats[potm.n]&&G.playerStats[potm.n].goals?' ⚽'+G.playerStats[potm.n].goals:'')+')</div>';
+  h+='</div>';
+
+  // Player stats section
+  h+='<div class="card"><h2>📊 球员数据统计</h2>';
+  h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.85em">';
+  h+='<tr style="color:#ffd700;border-bottom:1px solid rgba(255,215,0,.3)"><th style="padding:6px;text-align:left">球员</th><th>位置</th><th>出场</th><th>评分</th><th>进球</th><th>体力</th></tr>';
+  startersP.sort(function(a,b){return b.rt-a.rt});
+  var starters=startersP;
+  for(var i=0;i<starters.length;i++){
+    var p=starters[i];
+    var st=G.playerStamina[p.n]||100;
+    var goals=(G.playerStats[p.n]&&G.playerStats[p.n].goals)||0;
+    var rt=(G.playerStats[p.n]&&G.playerStats[p.n].rating)?p.rt+Math.floor((G.playerStats[p.n].rating||0)/3):p.rt;
+    rt=Math.min(99,rt);
+    var posCls=p.ps==='GK'?'pos-gk':['CB','RB','LB'].indexOf(p.ps)>=0?'pos-def':['CDM','CAM','CM'].indexOf(p.ps)>=0?'pos-mid':'pos-fwd';
+    h+='<tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:6px">'+p.nm+'</td>';
+    h+='<td><span class="pos-badge '+posCls+'">'+p.ps+'</span></td>';
+    var mins=G.playerMinutes[p.n]?Math.max(1,G.playerMinutes[p.n].end-(G.playerMinutes[p.n].start||0)):'90';
+    var subTag=G.playerMinutes[p.n]&&G.playerMinutes[p.n].subbed?' 🔄':'';
+    h+='<td style="text-align:center;font-size:.8em">'+mins+"'"+subTag+'</td>';
+    h+='<td style="text-align:center;color:#ffd700;font-weight:700">'+rt+'</td>';
+    h+='<td style="text-align:center">'+(goals>0?'⚽'+goals:'-')+'</td>';
+    h+='<td><div class="stamina-bar"><div class="stamina-fill stamina-'+(st>70?'high':st>40?'mid':'low')+'" style="width:'+st+'%"></div></div> '+st+'</td></tr>';
+  }
+  h+='</table></div></div>';
+
+  // ===== MEDIA REVIEWS =====
+  h+='<div class="card"><h2>📰 媒体点评</h2>';
+  var reviews=generateMediaReviews(won,lm,team,opp);
+  for(var i=0;i<reviews.length;i++){
+    var r=reviews[i];
+    h+='<div style="margin:8px 0;padding:10px 14px;background:rgba(0,0,0,.2);border-radius:8px;border-left:3px solid '+r.color+'">';
+    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-size:1.2em">'+r.icon+'</span><strong style="color:'+r.color+'">'+r.outlet+'</strong><span style="color:#aaa;font-size:.75em">'+r.author+'</span></div>';
+    h+='<div style="color:#ccc;font-size:.9em;line-height:1.5">'+r.text+'</div></div>';
+  }
+  h+='</div>';
+
+  h+='<div class="card"><h2>🎙️ 赛后新闻发布会</h2><div class="story-text"><p><strong>记者：</strong>"'+(won?'恭喜您取得胜利！球队今天的表现您满意吗？':'很遗憾输掉了比赛，您认为球队哪里做得不够好？')+'"</p></div>';
+  var opts=[{text:won?'球队表现完美，我为球员们骄傲':'我们尽了全力，但对手确实更强',e:won?'士气+5':'士气-2'},{text:won?'还有很多需要改进的地方':'裁判的判罚影响了比赛走势',e:won?'关注度+3':'关注度-3'},{text:won?'感谢球迷的支持，我们会走得更远':'我们会从失败中吸取教训',e:won?'化学+3':'化学+3'}];
+  for(var i=0;i<opts.length;i++){
+    h+='<div class="choice-btn" onclick="handlePostMatch('+i+','+won+')"><strong>选项'+(i+1)+'：</strong>'+opts[i].text+' <span style="color:#ffa500">('+opts[i].e+')</span></div>';
+  }
+  h+='</div>';
+  document.getElementById('postmatch-content').innerHTML=h;
+}
+
+function handlePostMatch(idx,won){
+  if(won){if(idx===0)G.teamMorale=Math.min(100,G.teamMorale+5);if(idx===1)G.teamChemistry=Math.min(100,G.teamChemistry+3);if(idx===2)G.teamChemistry=Math.min(100,G.teamChemistry+3)}
+  else{if(idx===0)G.teamMorale=Math.max(30,G.teamMorale-2);if(idx===2)G.teamChemistry=Math.min(100,G.teamChemistry+3)}
+  notify('发布会结束');setTimeout(function(){startTraining()},800);
+}
+
+// ===== TRAINING =====
+function startTraining(){
+  showScreen('training');
+  var ts=[{name:'战术演练',icon:'📋',desc:'强化战术执行力，提升球队化学',eff:{chem:8,morale:3}},{name:'体能强化',icon:'💪',desc:'针对性体能训练，恢复球员体力',eff:{stamina:15}},{name:'进攻训练',icon:'⚽',desc:'强化射门和进攻配合',eff:{attack:1,morale:5}},{name:'防守特训',icon:'🛡️',desc:'针对对手特点的防守演练',eff:{def:1,chem:3}},{name:'定位球训练',icon:'🎯',desc:'角球和任意球战术演练',eff:{setpiece:1,morale:3}},{name:'心理辅导',icon:'🧘',desc:'运动心理专家进行团队心理建设',eff:{morale:10,chem:5}},{name:'恢复训练',icon:'🏊',desc:'低强度恢复训练，减轻疲劳',eff:{stamina:10,injury:-5}},{name:'视频分析',icon:'🎬',desc:'研究对手战术特点，制定对策',eff:{tactics:1,chem:2}}];
+  G._trainSel=[];G._trainData=ts;
+  var h='<div class="card"><div class="flex-between"><div><span style="font-size:2em">'+getUserTeam().flag+'</span> <strong>下一场：'+getOpponent().name+' '+getOpponent().flag+'</strong></div><span class="stadium-badge">'+G.tournamentStage+'</span></div><div style="margin-top:10px;color:#aaa">🏟️ '+(G.stadium?G.stadium.name:'待定')+'</div></div>';
+  h+='<h2>选择训练项目 (选择2项)</h2><div class="grid3" id="training-grid">';
+  for(var i=0;i<ts.length;i++){
+    h+='<div class="training-card" id="train-'+i+'" onclick="selTrain('+i+')"><div class="icon">'+ts[i].icon+'</div><div style="font-weight:600;color:#ffd700">'+ts[i].name+'</div><div style="font-size:.85em;color:#aaa">'+ts[i].desc+'</div></div>';
+  }
+  h+='</div><div class="flex-center" style="margin-top:20px"><button class="btn gold" id="confirm-train-btn" onclick="confirmTrain()" disabled>确认训练 (已选0/2)</button></div>';
+  document.getElementById('training-content').innerHTML=h;
+}
+
+function selTrain(idx){
+  if(G._trainSel.indexOf(idx)>=0){G._trainSel=G._trainSel.filter(function(i){return i!==idx});var el=document.getElementById('train-'+idx);if(el){el.style.borderColor='rgba(255,255,255,.2)';el.style.background=''}}
+  else if(G._trainSel.length<2){G._trainSel.push(idx);var el=document.getElementById('train-'+idx);if(el){el.style.borderColor='#ffd700';el.style.background='rgba(255,215,0,.15)'}}
+  var btn=document.getElementById('confirm-train-btn');btn.textContent='确认训练 (已选'+G._trainSel.length+'/2)';btn.disabled=G._trainSel.length<2;
+}
+
+function confirmTrain(){
+  G._trainSel.forEach(function(idx){var t=G._trainData[idx];
+    if(t.eff.chem)G.teamChemistry=Math.min(100,Math.max(30,G.teamChemistry+t.eff.chem));
+    if(t.eff.morale)G.teamMorale=Math.min(100,Math.max(30,G.teamMorale+t.eff.morale));
+    if(t.eff.stamina)for(var k in G.playerStamina)G.playerStamina[k]=Math.min(100,G.playerStamina[k]+t.eff.stamina);
+    if(t.eff.attack)G.tactics.attack=Math.min(4,G.tactics.attack+1);
+    if(t.eff.def)G.tactics.defense=Math.min(4,G.tactics.defense+1);
+    if(t.eff.setpiece)G.tactics.setpiece=Math.min(4,G.tactics.setpiece+1);
+    if(t.eff.tactics)G.tactics.special=Math.min(4,G.tactics.special+1);
+    if(t.eff.injury)for(var k in G.playerInjuries){if(G.playerInjuries[k]&&Math.random()<0.4)G.playerInjuries[k]=false;}
+  });
+  notify('训练完成！球队状态已更新','success');G._trainSel=[];
+  setTimeout(function(){showProgress()},1000);
+}
+
+// ===== PROGRESS =====
+function showProgress(){
+  showScreen('progress');var team=getUserTeam();
+  var stages=['八分之一决赛','四分之一决赛','半决赛','决赛'];
+  var pH='';
+  for(var i=0;i<4;i++){
+    var cls='progress-node';if(i<G.matchIndex)cls+=' done';else if(i===G.matchIndex&&G.matchIndex<4)cls+=' current';
+    var label=i<G.matchHistory.length?(G.matchHistory[i].userScore||'?')+'-'+(G.matchHistory[i].oppScore||'?'):(i===G.matchIndex?'VS':'?');
+    pH+='<div class="'+cls+'">'+label+'</div>';
+    if(i<3) pH+='<div class="progress-arrow">→</div>';
+  }
+  var mh='';
+  for(var i=0;i<G.matchHistory.length;i++){
+    var m=G.matchHistory[i],opp=TEAMS[m.opponent];
+    mh+='<div class="card" style="text-align:center"><div style="font-size:.85em;color:#aaa">'+m.stage+'</div><div style="font-size:1.5em">'+team.flag+' <strong>'+m.userScore+'-'+m.oppScore+'</strong> '+opp.flag+'</div><div style="font-size:.8em;color:'+(m.won?'#4caf50':'#f44336')+'">'+(m.won?'✅ 胜利':'❌ 失利')+'</div><div style="font-size:.75em;color:#aaa">🏟️ '+m.stadium.name+'</div></div>';
+  }
+  var h='<div class="card" style="text-align:center"><div style="font-size:3em">'+team.flag+'</div><h2>'+team.name+' · 世界杯之路</h2><div class="progress-path">'+pH+'</div><div style="margin:15px 0"><div>📊 球队士气：'+G.teamMorale+' | 🤝 球队化学：'+G.teamChemistry+'</div></div><div class="grid2" style="margin-top:15px">'+mh+'</div></div>';
+  h+='<div class="flex-center" style="margin-top:20px"><button class="btn gold" onclick="nextMatch()" style="font-size:1.2em;padding:15px 40px">继续 → '+G.tournamentStage+' · '+getOpponent().name+' '+getOpponent().flag+'</button></div>';
+  document.getElementById('progress-content').innerHTML=h;
+}
+
+function nextMatch(){
+  G.stadium=STADIUMS[Math.floor(Math.random()*STADIUMS.length)];
+  G.weather={temp:25+Math.floor(Math.random()*15),condition:['☀️ 晴','⛅ 多云','🌤️ 晴间多云'][Math.floor(Math.random()*3)]};
+  startStory();
+}
+
+// ===== GAME OVER =====
+function showVictory(){
+  showScreen('gameover');var team=getUserTeam();
+  document.getElementById('gameover-emoji').innerHTML='<div style="animation:float 2s ease infinite;font-size:2em">🏆🏆🏆</div>';
+  document.getElementById('gameover-title').innerHTML='<span style="animation:glow 1.5s infinite">🌟 世界冠军！🌟</span>';
+  var mh='',tg=0,ta=0;
+  for(var i=0;i<G.matchHistory.length;i++){var m=G.matchHistory[i],opp=TEAMS[m.opponent];tg+=m.userScore;ta+=m.oppScore;
+    mh+='<div style="margin:8px 0;padding:8px;background:rgba(255,215,0,.05);border-radius:8px"><strong>'+m.stage+'</strong><br><span style="font-size:1.3em">'+team.flag+' '+m.userScore+' - '+m.oppScore+' '+opp.flag+'</span><br><span style="color:'+(m.won?'#4caf50':'#f44336')+'">'+(m.won?'✅ 胜利':'❌ 失利')+'</span> · 🏟️ '+m.stadium.name+'</div>'}
+  // Calculate MVP across all matches using career stats
+  var allPlayers=team.p.slice();
+  allPlayers.sort(function(a,b){
+    var sa=(G.careerStats[a.n]?G.careerStats[a.n].goals||0:0)*15+(G.careerStats[a.n]?G.careerStats[a.n].rating||0:0);
+    var sb=(G.careerStats[b.n]?G.careerStats[b.n].goals||0:0)*15+(G.careerStats[b.n]?G.careerStats[b.n].rating||0:0);
+    return sb-sa;
+  });
+  var mvp=allPlayers[0];
+  var mvpGoals=(G.careerStats[mvp.n]&&G.careerStats[mvp.n].goals)||0;
+  var mvpMatches=G.matchHistory.length;
+  document.getElementById('gameover-content').innerHTML='<div style="text-align:center;animation:slideUp .8s ease">'+
+    '<div style="font-size:6em;animation:float 2s ease infinite">🏆</div>'+
+    '<div style="background:linear-gradient(135deg,rgba(255,215,0,.3),rgba(255,180,0,.1));border:3px solid rgba(255,215,0,.6);border-radius:20px;padding:30px;margin:20px 0">'+
+    '<div style="font-size:3em;margin:10px 0">'+team.flag+'</div>'+
+    '<h1 style="font-size:2.5em;color:#ffd700;animation:glow 1.5s infinite;margin:10px 0">'+team.name+'</h1>'+
+    '<h2 style="color:#ffd700;font-size:2em;margin:10px 0">🏆 2026 世界杯冠军 🏆</h2>'+
+    '<p style="font-size:1.1em;color:#ccc;margin:15px 0">经过'+G.matchHistory.length+'场艰苦卓绝的战斗，'+team.name+'终于站在了世界之巅！</p>'+
+    '<p style="color:#ffd700;font-size:1em">🌟 赛事MVP：'+mvp.nm+' ('+mvp.rt+'分 | ⚽'+mvpGoals+'球 | '+mvpMatches+'场)</p><p style="color:#aaa;font-size:.85em">🧤 零封场次：'+G.matchHistory.filter(function(m){return m.oppScore===0}).length+' | 🟨 总黄牌：'+Object.values(G.playerCards).reduce(function(a,b){return a+b},0)+' | 🏟️ 场均观众：'+Math.floor(60000+Math.random()*20000)+'</p>'+
+    '</div>'+
+    '<div style="display:flex;gap:15px;flex-wrap:wrap;justify-content:center;margin:20px 0">'+
+    '<div class="card" style="text-align:center;min-width:120px"><div style="font-size:2em">⚽</div><div style="font-size:2em;color:#ffd700;font-weight:900">'+tg+'</div><div>总进球</div></div>'+
+    '<div class="card" style="text-align:center;min-width:120px"><div style="font-size:2em">🛡️</div><div style="font-size:2em;color:#ffd700;font-weight:900">'+ta+'</div><div>总失球</div></div>'+
+    '<div class="card" style="text-align:center;min-width:120px"><div style="font-size:2em">📊</div><div style="font-size:2em;color:#ffd700;font-weight:900">'+G.teamMorale+'</div><div>球队士气</div></div>'+
+    '<div class="card" style="text-align:center;min-width:120px"><div style="font-size:2em">🤝</div><div style="font-size:2em;color:#ffd700;font-weight:900">'+G.teamChemistry+'</div><div>球队化学</div></div>'+
+    '</div>'+
+    '<h3 style="color:#ffd700;margin-top:20px">🏟️ 夺冠之路</h3>'+
+    '<div style="max-width:500px;margin:0 auto">'+mh+'</div>'+
+    '</div><div class="flex-center" style="margin-top:20px"><button class="btn gold" onclick="location.reload()" style="font-size:1.2em;padding:15px 40px">🔄 再来一次</button></div>';
+}
+
+function showElimination(){
+  showScreen('gameover');var team=getUserTeam();
+  document.getElementById('gameover-emoji').textContent='😢';
+  document.getElementById('gameover-title').textContent='世界杯之旅结束';
+  var mh='';for(var i=0;i<G.matchHistory.length;i++){var m=G.matchHistory[i],opp=TEAMS[m.opponent];mh+='<div style="margin:5px 0">'+m.stage+'：'+team.flag+' '+m.userScore+' - '+m.oppScore+' '+opp.flag+' '+(m.won?'✅':'❌')+'</div>'}
+  document.getElementById('gameover-content').innerHTML='<div class="card" style="text-align:center;animation:slideUp .8s ease"><div style="font-size:5em">'+team.flag+'</div><h2>'+team.name+' 止步'+G.tournamentStage+'</h2><p style="color:#aaa">但这支球队的精神将永远传承下去...</p><div style="margin:20px 0">'+mh+'</div></div><div class="flex-center" style="margin-top:20px"><button class="btn gold" onclick="location.reload()" style="font-size:1.2em">🔄 重新开始</button></div>';
+}
+
+// ===== INIT =====
+renderTeamSelect();
+
+</script>
